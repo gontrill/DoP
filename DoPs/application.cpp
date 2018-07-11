@@ -16,7 +16,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::SEndpointCommand													command						= {::gpk::ENDPOINT_COMMAND_DISCONNECT, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
 	commandToSend.write_pod(command);
 
-	/* Set family and port */
+	// Set family and port */
 	::gpk::SIPv4															& local						= server.Address;
 	struct sockaddr_in														sa_remote					= {};			/* Information about the server */
 	sa_remote.sin_family												= AF_INET;
