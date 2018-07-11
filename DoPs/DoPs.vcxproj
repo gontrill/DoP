@@ -109,11 +109,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="application.h" />
-    <ClInclude Include="endpoint.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="application.cpp" />
-    <ClCompile Include="endpoint.cpp" />
+    <ClCompile Include="timeserv.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

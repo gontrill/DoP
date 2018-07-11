@@ -18,15 +18,12 @@
     <ClInclude Include="application.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="endpoint.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="endpoint.cpp">
+    <ClCompile Include="timeserv.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,12 +1,42 @@
 #include "application.h"
 #include "gpk_bitmap_file.h"
+#include "gpk_tcpip.h"
 
 //#define GPK_AVOID_LOCAL_APPLICATION_MODULE_MODEL_EXECUTABLE_RUNTIME
 #include "gpk_app_impl.h"
+#include "gpk_endpoint_command.h"
+#include "gpk_view_stream.h"
 
 GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 
-			::gpk::error_t											cleanup						(::gme::SApplication & app)						{ return ::gpk::mainWindowDestroy(app.Framework.MainDisplay); }
+			int														serverShutdown				(::gme::SServer& server)						{
+	server.Listening													= false;
+	char																	commandbytes	[256]		= {};
+	::gpk::view_stream<char>												commandToSend				= {commandbytes};
+	::gpk::SEndpointCommand													command						= {::gpk::ENDPOINT_COMMAND_DISCONNECT, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
+	commandToSend.write_pod(command);
+
+	/* Set family and port */
+	::gpk::SIPv4															& local						= server.Address;
+	struct sockaddr_in														sa_remote					= {};			/* Information about the server */
+	sa_remote.sin_family												= AF_INET;
+	sa_remote.sin_port													= htons(local.Port);
+	sa_remote.sin_addr.S_un.S_un_b.s_b1									= (unsigned char)local.IP[0];
+	sa_remote.sin_addr.S_un.S_un_b.s_b2									= (unsigned char)local.IP[1];
+	sa_remote.sin_addr.S_un.S_un_b.s_b3									= (unsigned char)local.IP[2];
+	sa_remote.sin_addr.S_un.S_un_b.s_b4									= (unsigned char)local.IP[3];
+	ree_if(sendto(server.Socket, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_remote, (int)sizeof(struct sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.\n");
+	return 0;
+}
+
+			int														serverListen				(::gme::SServer& server);
+			::gpk::error_t											cleanup						(::gme::SApplication & app)						{ 
+	::serverShutdown(app.Server);
+	while(app.Server.Running)
+		::gpk::sleep(10);
+	::gpk::tcpipShutdown();
+	return ::gpk::mainWindowDestroy(app.Framework.MainDisplay); 
+}
 			::gpk::error_t											setup						(::gme::SApplication & app)						{ 
 	::gpk::SFramework														& framework					= app.Framework;
 	::gpk::SDisplay															& mainWindow				= framework.MainDisplay;
@@ -27,6 +57,11 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::SControlConstraints												& controlConstraints		= gui.Controls.Constraints[app.IdExit];
 	controlConstraints.AttachSizeToControl								= {app.IdExit, -1};
 	::gpk::controlSetParent(gui, app.IdExit, -1);
+	::gpk::tcpipInitialize();
+	::gpk::SIPv4															addressClient				= {};
+	::gpk::SIPv4															& addressServer				= app.Server.Address	= {{192, 168, 1, 79}, 6667,};
+	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, &addressClient.IP[0], &addressClient.IP[1], &addressClient.IP[2], &addressClient.IP[3]);
+	serverListen(app.Server);
 	return 0; 
 }
 

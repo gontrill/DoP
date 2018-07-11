@@ -1,12 +1,18 @@
 #include "application.h"
 #include "gpk_bitmap_file.h"
+#include "gpk_tcpip.h"
+#include "gpk_endpoint_command.h"
 
 //#define GPK_AVOID_LOCAL_APPLICATION_MODULE_MODEL_EXECUTABLE_RUNTIME
 #include "gpk_app_impl.h"
 
 GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 
-			::gpk::error_t											cleanup						(::gme::SApplication & app)						{ return ::gpk::mainWindowDestroy(app.Framework.MainDisplay); }
+			::gpk::error_t											cleanup						(::gme::SApplication & app)						{ 
+	::gpk::tcpipShutdown();
+	return ::gpk::mainWindowDestroy(app.Framework.MainDisplay); 
+}
+
 			::gpk::error_t											setup						(::gme::SApplication & app)						{ 
 	::gpk::SFramework														& framework					= app.Framework;
 	::gpk::SDisplay															& mainWindow				= framework.MainDisplay;
@@ -27,6 +33,11 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::SControlConstraints												& controlConstraints		= gui.Controls.Constraints[app.IdExit];
 	controlConstraints.AttachSizeToControl								= {app.IdExit, -1};
 	::gpk::controlSetParent(gui, app.IdExit, -1);
+
+	::gpk::tcpipInitialize();
+	::gpk::SIPv4															addressClient				= {};
+	::gpk::SIPv4															addressServer				= {{192, 168, 1, 79}, 6667,};
+	::gpk::tcpipAddress(addressClient.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, &addressClient.IP[0], &addressClient.IP[1], &addressClient.IP[2], &addressClient.IP[3]);
 	return 0; 
 }
 
@@ -51,6 +62,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	return 0; 
 }
 
+			int														run							();
 			::gpk::error_t											update						(::gme::SApplication & app, bool exitSignal)	{ 
 	//::gpk::STimer															timer;
 	retval_info_if(::gpk::APPLICATION_STATE_EXIT, exitSignal, "Exit requested by runtime.");
@@ -61,6 +73,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::SFramework														& framework					= app.Framework;
 	retval_info_if(::gpk::APPLICATION_STATE_EXIT, ::gpk::APPLICATION_STATE_EXIT == ::gpk::updateFramework(app.Framework), "Exit requested by framework update.");
 
+	run();
 	::gpk::SGUI																& gui						= framework.GUI;
 	{
 		::gme::mutex_guard														lock						(app.LockGUI);

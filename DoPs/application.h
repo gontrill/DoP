@@ -1,5 +1,7 @@
 #include "gpk_framework.h"
 #include "gpk_gui.h"
+#include "gpk_tcpip.h"
+#include "gpk_stdsocket.h"
 
 #include <mutex>
 
@@ -8,6 +10,19 @@
 
 namespace gme // I'm gonna use a different namespace in order to test a few things about the macros.
 {
+	struct SServerClient {
+		::gpk::SIPv4							Address						= {{192, 168, 1, 79}, 6667, };
+		SOCKET									Socket;
+	};
+
+	struct SServer {
+		::gpk::SIPv4							Address						= {{192, 168, 1, 79}, 6667, };
+		bool									Listening					= false;
+		bool									Running						= false;
+		::gpk::array_pod<SServerClient>			Clients						= {};		
+		SOCKET									Socket						= INVALID_SOCKET;
+	};
+
 	struct SApplication {
 		::gpk::SFramework													Framework;
 		::gpk::SImage<::gpk::SColorBGRA>									TextureFont							= {};
@@ -17,6 +32,7 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 
 		::std::mutex														LockGUI;
 		::std::mutex														LockRender;
+		::gme::SServer														Server;
 
 																			SApplication		(::gpk::SRuntimeValues& runtimeValues)	: Framework(runtimeValues)		{}
 	};
