@@ -1,9 +1,10 @@
 // http://www.gomorgan89.com 
+#include "application.h"
+
 #include "gpk_windows.h"
 #include "gpk_stdsocket.h"
 #include "gpk_endpoint_command.h"
 #include "gpk_view_stream.h"
-#include "application.h"
 
 #include <time.h>
 
@@ -11,40 +12,40 @@
 #	include <process.h>
 #endif
 
-::gpk::error_t						run							(::gme::SServer& server);
-void								run_thread					(void * server)									{ error_if(errored(run(*(::gme::SServer*)server)), "Listening thread exited with error."); }
-int									serverListen				(::gme::SServer& server)						{
-	server.Running						= true;
+::gpk::error_t									run							(::gme::SServer& server);
+void											run_thread					(void * server)									{ error_if(errored(run(*(::gme::SServer*)server)), "Listening thread exited with error."); }
+int												serverListen				(::gme::SServer& server)						{
+	server.Running									= true;
 	_beginthread(::run_thread, 0, &server);
 	return 0;
 }
 
-::gpk::error_t						handleRequest				(::gme::SServer& server, ::gpk::ENDPOINT_COMMAND in_command, sockaddr_in sa_server, sockaddr_in sa_client)		{
-	SOCKET									sd							= server.Socket;
-	//int										client_length				= (int)sizeof(struct sockaddr_in);	// Length of client struct */
-	char									send_buffer	[256]			= {};				/* Name of the server */
-	::gpk::SEndpointCommand					command						= {};
+::gpk::error_t									handleRequest				(::gme::SServer& server, ::gpk::ENDPOINT_COMMAND in_command, sockaddr_in sa_server, sockaddr_in sa_client)		{
+	SOCKET												sd							= server.Socket;
+	//int													client_length				= (int)sizeof(struct sockaddr_in);	// Length of client struct */
+	char												send_buffer	[256]			= {};				/* Name of the server */
+	::gpk::SEndpointCommand								send_command				= {};
 	switch(in_command) {
 	default	: break;
 	case ::gpk::ENDPOINT_COMMAND_TIME:
 		{	// Check for time request */
 		info_printf("Processing TIME request.");
-		::std::chrono::system_clock::time_point			nowclock					= std::chrono::system_clock::now();
-		const int64_t									current_time				= std::chrono::system_clock::to_time_t(nowclock);
-		::gpk::view_stream<char>						commandToSend				= {send_buffer};
-		command										= {::gpk::ENDPOINT_COMMAND_TIME, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};
-		commandToSend.write_pod(command);
+		::std::chrono::system_clock::time_point				nowclock					= std::chrono::system_clock::now();
+		const int64_t										current_time				= std::chrono::system_clock::to_time_t(nowclock);
+		::gpk::view_stream<char>							commandToSend				= {send_buffer};
+		send_command									= {::gpk::ENDPOINT_COMMAND_TIME, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};
+		commandToSend.write_pod(send_command);
 		commandToSend.write_pod(current_time);
-		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_client, (int)sizeof(struct sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.");
+		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (sockaddr *)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.");
 		}
 		break;
 	case ::gpk::ENDPOINT_COMMAND_PING:
 		{	// Check for ping request */
 		info_printf("Processing PING request.");
-		::gpk::view_stream<char>						commandToSend				= {send_buffer};
-		command										= {::gpk::ENDPOINT_COMMAND_PING, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};
-		commandToSend.write_pod(command);
-		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_client, (int)sizeof(struct sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.");
+		::gpk::view_stream<char>							commandToSend				= {send_buffer};
+		send_command									= {::gpk::ENDPOINT_COMMAND_PING, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};
+		commandToSend.write_pod(send_command);
+		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (sockaddr *)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.");
 		}
 		break;
 	case ::gpk::ENDPOINT_COMMAND_DISCONNECT:
@@ -75,24 +76,24 @@ int									serverListen				(::gme::SServer& server)						{
 	sdsafe.Handle						= sd;
 
 	/* Set family and port */
-	struct sockaddr_in						sa_server					= {};			/* Information about the server */
+	sockaddr_in								sa_server					= {};			/* Information about the server */
 	sa_server.sin_family				= AF_INET;
 	sa_server.sin_port					= htons(local.Port);
 	sa_server.sin_addr.S_un.S_un_b.s_b1 = (unsigned char)local.IP[0];
 	sa_server.sin_addr.S_un.S_un_b.s_b2 = (unsigned char)local.IP[1];
 	sa_server.sin_addr.S_un.S_un_b.s_b3 = (unsigned char)local.IP[2];
 	sa_server.sin_addr.S_un.S_un_b.s_b4 = (unsigned char)local.IP[3];
-	gpk_necall(bind(sd, (struct sockaddr *)&sa_server, sizeof(struct sockaddr_in)), "This could be caused by incorrect address/port combination.");	// Bind address to socket */
+	gpk_necall(bind(sd, (sockaddr *)&sa_server, sizeof(sockaddr_in)), "This could be caused by incorrect address/port combination.");	// Bind address to socket */
 	info_printf("Server running on %u.%u.%u.%u.", (uint32_t)local.IP[0]
 												, (uint32_t)local.IP[1]
 												, (uint32_t)local.IP[2]
 												, (uint32_t)local.IP[3]);
 	server.Listening					= true;
 	while (server.Listening) {		// Loop and get data from clients */
-		int												client_length				= (int)sizeof(struct sockaddr_in);	// Length of client struct */
+		int												client_length				= (int)sizeof(sockaddr_in);	// Length of client struct */
 		::gpk::SEndpointCommand							command						= {};
-		struct sockaddr_in								sa_client					= {};			// Information about the client */
-		bytes_received								= recvfrom(sd, (char*)&command, sizeof(::gpk::SEndpointCommand), MSG_PEEK, (struct sockaddr *)&sa_client, &client_length);		// Receive bytes from client */
+		sockaddr_in										sa_client					= {};			// Information about the client */
+		bytes_received								= recvfrom(sd, (char*)&command, sizeof(::gpk::SEndpointCommand), MSG_PEEK, (sockaddr *)&sa_client, &client_length);		// Receive bytes from client */
 		if(SOCKET_ERROR == bytes_received) {
 #if defined(GPK_WINDOWS)
 			const uint32_t									lastError					= WSAGetLastError();
@@ -101,7 +102,7 @@ int									serverListen				(::gme::SServer& server)						{
 			WSASetLastError(0);
 #endif
 		}
-		bytes_received								= recvfrom(sd, (char*)&command, sizeof(::gpk::SEndpointCommand), 0, (struct sockaddr *)&sa_client, &client_length);		// Receive bytes from client */
+		bytes_received								= recvfrom(sd, (char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr *)&sa_client, &client_length);		// Receive bytes from client */
 		bi_if(1 == ::handleRequest(server, command.Command, sa_server, sa_client), "Server received a close message.");
 	}
 	server.Listening							= false;

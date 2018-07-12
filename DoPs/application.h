@@ -1,7 +1,9 @@
 #include "gpk_framework.h"
-#include "gpk_gui.h"
+
 #include "gpk_tcpip.h"
 #include "gpk_stdsocket.h"
+
+#include "dopl_connection.h"
 
 #include <mutex>
 

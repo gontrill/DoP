@@ -18,7 +18,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 
 	// Set family and port */
 	::gpk::SIPv4															& local						= server.Address;
-	struct sockaddr_in														sa_remote					= {};			/* Information about the server */
+	sockaddr_in																sa_remote					= {};			/* Information about the server */
 	sa_remote.sin_family												= AF_INET;
 	sa_remote.sin_port													= htons(local.Port);
 	sa_remote.sin_addr.S_un.S_un_b.s_b1									= (unsigned char)local.IP[0];
@@ -26,7 +26,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	sa_remote.sin_addr.S_un.S_un_b.s_b3									= (unsigned char)local.IP[2];
 	sa_remote.sin_addr.S_un.S_un_b.s_b4									= (unsigned char)local.IP[3];
 	while(server.Running) {
-		warn_if(sendto(server.Socket, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_remote, (int)sizeof(struct sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.\n");
+		warn_if(sendto(server.Socket, (const char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr *)&sa_remote, (int)sizeof(sockaddr_in)) != (int32_t)sizeof(::gpk::SEndpointCommand), "Error sending disconnect command.");
 		::gpk::sleep(10);
 	}
 	return 0;
@@ -66,7 +66,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::SIPv4															& addressServer				= app.Server.Address	= {{192, 168, 1, 79}, 6667,};
 	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressServer);
 	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient);
-	serverListen(app.Server);
+	::serverListen(app.Server);
 	return 0; 
 }
 

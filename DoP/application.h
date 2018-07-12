@@ -1,7 +1,8 @@
-#include "gpk_stdsocket.h"
 #include "gpk_framework.h"
-#include "gpk_gui.h"
+#include "gpk_stdsocket.h"
 #include "gpk_tcpip.h"
+
+#include "dopl_connection.h"
 
 #include <mutex>
 
@@ -11,9 +12,8 @@
 namespace gme // I'm gonna use a different namespace in order to test a few things about the macros.
 {
 	struct SClient {
-		::gpk::SIPv4														AddressLocal						= {{192, 168, 1, 79}, 6668, };
-		::gpk::SIPv4														AddressRemote						= {{192, 168, 1, 79}, 6667, };
-		SOCKET																Socket								= INVALID_SOCKET;
+		::dop::SConnection													Connection							= {};
+		int64_t																Time								= 0;
 	};
 
 	struct SApplication {
