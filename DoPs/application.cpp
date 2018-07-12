@@ -25,7 +25,10 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	sa_remote.sin_addr.S_un.S_un_b.s_b2									= (unsigned char)local.IP[1];
 	sa_remote.sin_addr.S_un.S_un_b.s_b3									= (unsigned char)local.IP[2];
 	sa_remote.sin_addr.S_un.S_un_b.s_b4									= (unsigned char)local.IP[3];
-	ree_if(sendto(server.Socket, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_remote, (int)sizeof(struct sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.\n");
+	while(server.Running) {
+		warn_if(sendto(server.Socket, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_remote, (int)sizeof(struct sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.\n");
+		::gpk::sleep(10);
+	}
 	return 0;
 }
 
@@ -37,6 +40,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::tcpipShutdown();
 	return ::gpk::mainWindowDestroy(app.Framework.MainDisplay); 
 }
+
 			::gpk::error_t											setup						(::gme::SApplication & app)						{ 
 	::gpk::SFramework														& framework					= app.Framework;
 	::gpk::SDisplay															& mainWindow				= framework.MainDisplay;
@@ -60,7 +64,8 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::tcpipInitialize();
 	::gpk::SIPv4															addressClient				= {};
 	::gpk::SIPv4															& addressServer				= app.Server.Address	= {{192, 168, 1, 79}, 6667,};
-	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, &addressClient.IP[0], &addressClient.IP[1], &addressClient.IP[2], &addressClient.IP[3]);
+	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressServer);
+	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient);
 	serverListen(app.Server);
 	return 0; 
 }
@@ -116,7 +121,6 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 				return 1;
 		}
 	}
-
 	//timer.Frame();
 	//warning_printf("Update time: %f.", (float)timer.LastTimeSeconds);
 	return 0; 

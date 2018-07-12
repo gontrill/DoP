@@ -34,10 +34,12 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	controlConstraints.AttachSizeToControl								= {app.IdExit, -1};
 	::gpk::controlSetParent(gui, app.IdExit, -1);
 
+
 	::gpk::tcpipInitialize();
-	::gpk::SIPv4															addressClient				= {};
-	::gpk::SIPv4															addressServer				= {{192, 168, 1, 79}, 6667,};
-	::gpk::tcpipAddress(addressClient.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, &addressClient.IP[0], &addressClient.IP[1], &addressClient.IP[2], &addressClient.IP[3]);
+	::gpk::SIPv4															& addressClient				= app.Client.AddressLocal		= {};
+	::gpk::SIPv4															& addressServer				= app.Client.AddressRemote		= {{192, 168, 1, 79}, 6667,};
+	::gpk::tcpipAddress(addressClient.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient);
+	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressServer);
 	return 0; 
 }
 
@@ -62,7 +64,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	return 0; 
 }
 
-			int														run							();
+			int														run							(::gme::SClient& client);
 			::gpk::error_t											update						(::gme::SApplication & app, bool exitSignal)	{ 
 	//::gpk::STimer															timer;
 	retval_info_if(::gpk::APPLICATION_STATE_EXIT, exitSignal, "Exit requested by runtime.");
@@ -73,7 +75,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::SFramework														& framework					= app.Framework;
 	retval_info_if(::gpk::APPLICATION_STATE_EXIT, ::gpk::APPLICATION_STATE_EXIT == ::gpk::updateFramework(app.Framework), "Exit requested by framework update.");
 
-	run();
+	run(app.Client);
 	::gpk::SGUI																& gui						= framework.GUI;
 	{
 		::gme::mutex_guard														lock						(app.LockGUI);

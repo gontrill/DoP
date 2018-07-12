@@ -21,7 +21,7 @@ int									serverListen				(::gme::SServer& server)						{
 
 ::gpk::error_t						handleRequest				(::gme::SServer& server, ::gpk::ENDPOINT_COMMAND in_command, sockaddr_in sa_server, sockaddr_in sa_client)		{
 	SOCKET									sd							= server.Socket;
-	int										client_length				= (int)sizeof(struct sockaddr_in);	// Length of client struct */
+	//int										client_length				= (int)sizeof(struct sockaddr_in);	// Length of client struct */
 	char									send_buffer	[256]			= {};				/* Name of the server */
 	::gpk::SEndpointCommand					command						= {};
 	switch(in_command) {
@@ -29,12 +29,13 @@ int									serverListen				(::gme::SServer& server)						{
 	case ::gpk::ENDPOINT_COMMAND_TIME:
 		{	// Check for time request */
 		info_printf("Processing TIME request.");
-		const int64_t									current_time				= time(NULL);				// Get current time */
+		::std::chrono::system_clock::time_point			nowclock					= std::chrono::system_clock::now();
+		const int64_t									current_time				= std::chrono::system_clock::to_time_t(nowclock);
 		::gpk::view_stream<char>						commandToSend				= {send_buffer};
 		command										= {::gpk::ENDPOINT_COMMAND_TIME, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};
 		commandToSend.write_pod(command);
 		commandToSend.write_pod(current_time);
-		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_client, client_length) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.\n");
+		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_client, (int)sizeof(struct sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.");
 		}
 		break;
 	case ::gpk::ENDPOINT_COMMAND_PING:
@@ -43,7 +44,7 @@ int									serverListen				(::gme::SServer& server)						{
 		::gpk::view_stream<char>						commandToSend				= {send_buffer};
 		command										= {::gpk::ENDPOINT_COMMAND_PING, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};
 		commandToSend.write_pod(command);
-		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_client, client_length) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.\n");
+		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (struct sockaddr *)&sa_client, (int)sizeof(struct sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.");
 		}
 		break;
 	case ::gpk::ENDPOINT_COMMAND_DISCONNECT:
@@ -77,41 +78,16 @@ int									serverListen				(::gme::SServer& server)						{
 	struct sockaddr_in						sa_server					= {};			/* Information about the server */
 	sa_server.sin_family				= AF_INET;
 	sa_server.sin_port					= htons(local.Port);
-
-	bool usehostaddress = true;		/* Set address automatically if desired */
-	if (usehostaddress) {
-		::gpk::tcpipAddress(0, 0, ::gpk::TRANSPORT_PROTOCOL_UDP
-			, &sa_server.sin_addr.S_un.S_un_b.s_b1
-			, &sa_server.sin_addr.S_un.S_un_b.s_b2
-			, &sa_server.sin_addr.S_un.S_un_b.s_b3
-			, &sa_server.sin_addr.S_un.S_un_b.s_b4
-			);
-	}
-	else {	/* Otherwise assign it manually */
-		sa_server.sin_addr.S_un.S_un_b.s_b1 = (unsigned char)local.IP[0];
-		sa_server.sin_addr.S_un.S_un_b.s_b2 = (unsigned char)local.IP[1];
-		sa_server.sin_addr.S_un.S_un_b.s_b3 = (unsigned char)local.IP[2];
-		sa_server.sin_addr.S_un.S_un_b.s_b4 = (unsigned char)local.IP[3];
-	}
-
-	//int32_t value = 1000;
-	//setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&value, 4);
-	// Set the socket I/O mode: In this case FIONBIO
-	// enables or disables the blocking mode for the
-	// socket based on the numerical value of iMode.
-	// If iMode = 0, blocking is enabled;
-	// If iMode != 0, non-blocking mode is enabled.
-	//u_long	iMode = 1; // 1 == nonbolcking
-	//int32_t iResult = ioctlsocket(sd, FIONBIO, &iMode);
-	//if (iResult != NO_ERROR)
-	//	printf("ioctlsocket failed with error: %ld\n", iResult);
-	gpk_necall(bind(sd, (struct sockaddr *)&sa_server, sizeof(struct sockaddr_in)), "Could not bind name to socket.\n");	// Bind address to socket */
-	// Print out server information */
-	info_printf("Server running on %u.%u.%u.%u.", (unsigned char)sa_server.sin_addr.S_un.S_un_b.s_b1
-												, (unsigned char)sa_server.sin_addr.S_un.S_un_b.s_b2
-												, (unsigned char)sa_server.sin_addr.S_un.S_un_b.s_b3
-												, (unsigned char)sa_server.sin_addr.S_un.S_un_b.s_b4);
-	server.Listening = true;
+	sa_server.sin_addr.S_un.S_un_b.s_b1 = (unsigned char)local.IP[0];
+	sa_server.sin_addr.S_un.S_un_b.s_b2 = (unsigned char)local.IP[1];
+	sa_server.sin_addr.S_un.S_un_b.s_b3 = (unsigned char)local.IP[2];
+	sa_server.sin_addr.S_un.S_un_b.s_b4 = (unsigned char)local.IP[3];
+	gpk_necall(bind(sd, (struct sockaddr *)&sa_server, sizeof(struct sockaddr_in)), "This could be caused by incorrect address/port combination.");	// Bind address to socket */
+	info_printf("Server running on %u.%u.%u.%u.", (uint32_t)local.IP[0]
+												, (uint32_t)local.IP[1]
+												, (uint32_t)local.IP[2]
+												, (uint32_t)local.IP[3]);
+	server.Listening					= true;
 	while (server.Listening) {		// Loop and get data from clients */
 		int												client_length				= (int)sizeof(struct sockaddr_in);	// Length of client struct */
 		::gpk::SEndpointCommand							command						= {};
@@ -125,7 +101,7 @@ int									serverListen				(::gme::SServer& server)						{
 			WSASetLastError(0);
 #endif
 		}
-		bytes_received						= recvfrom(sd, (char*)&command, sizeof(::gpk::SEndpointCommand), 0, (struct sockaddr *)&sa_client, &client_length);		// Receive bytes from client */
+		bytes_received								= recvfrom(sd, (char*)&command, sizeof(::gpk::SEndpointCommand), 0, (struct sockaddr *)&sa_client, &client_length);		// Receive bytes from client */
 		bi_if(1 == ::handleRequest(server, command.Command, sa_server, sa_client), "Server received a close message.");
 	}
 	server.Listening							= false;
@@ -134,3 +110,16 @@ int									serverListen				(::gme::SServer& server)						{
 	server.Running								= false;
 	return 0;
 }
+
+
+	//int32_t value = 1000;
+	//setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&value, 4);
+	// Set the socket I/O mode: In this case FIONBIO
+	// enables or disables the blocking mode for the
+	// socket based on the numerical value of iMode.
+	// If iMode = 0, blocking is enabled;
+	// If iMode != 0, non-blocking mode is enabled.
+	//u_long	iMode = 1; // 1 == nonbolcking
+	//int32_t iResult = ioctlsocket(sd, FIONBIO, &iMode);
+	//if (iResult != NO_ERROR)
+	//	printf("ioctlsocket failed with error: %ld\n", iResult);

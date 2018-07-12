@@ -12,7 +12,7 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 {
 	struct SServerClient {
 		::gpk::SIPv4							Address						= {{192, 168, 1, 79}, 6667, };
-		SOCKET									Socket;
+		SOCKET									Socket						= INVALID_SOCKET;
 	};
 
 	struct SServer {

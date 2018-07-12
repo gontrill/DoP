@@ -1,5 +1,7 @@
+#include "gpk_stdsocket.h"
 #include "gpk_framework.h"
 #include "gpk_gui.h"
+#include "gpk_tcpip.h"
 
 #include <mutex>
 
@@ -8,6 +10,12 @@
 
 namespace gme // I'm gonna use a different namespace in order to test a few things about the macros.
 {
+	struct SClient {
+		::gpk::SIPv4														AddressLocal						= {{192, 168, 1, 79}, 6668, };
+		::gpk::SIPv4														AddressRemote						= {{192, 168, 1, 79}, 6667, };
+		SOCKET																Socket								= INVALID_SOCKET;
+	};
+
 	struct SApplication {
 		::gpk::SFramework													Framework;
 		::gpk::SImage<::gpk::SColorBGRA>									TextureFont							= {};
@@ -18,7 +26,9 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 		::std::mutex														LockGUI;
 		::std::mutex														LockRender;
 
-																			SApplication		(::gpk::SRuntimeValues& runtimeValues)	: Framework(runtimeValues)		{}
+		SClient																Client								= {};
+
+																			SApplication						(::gpk::SRuntimeValues& runtimeValues)	noexcept	: Framework(runtimeValues)		{}
 	};
 
 	typedef ::std::lock_guard<::std::mutex>								mutex_guard;
