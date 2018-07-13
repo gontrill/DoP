@@ -15,12 +15,18 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="dopl_connection.h">
+    <ClInclude Include="dop_connection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dop_tcpip_node_udp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dopl_connection.cpp">
+    <ClCompile Include="dop_connection.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dop_tcpip_node_udp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -2,7 +2,7 @@
 #include "gpk_stdsocket.h"
 #include "gpk_tcpip.h"
 
-#include "dopl_connection.h"
+#include "dop_connection.h"
 
 #include <mutex>
 
@@ -12,7 +12,10 @@
 namespace gme // I'm gonna use a different namespace in order to test a few things about the macros.
 {
 	struct SClient {
-		::dop::SConnection													Connection							= {};
+		::gpk::SIPv4														AddressLocal						= {};
+		::gpk::SIPv4														AddressRemote						= {};
+		uint16_t															PortReceive							= 0;
+		SOCKET																Socket								= INVALID_SOCKET;
 		int64_t																Time								= 0;
 	};
 

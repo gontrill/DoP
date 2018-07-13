@@ -36,8 +36,8 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 
 
 	::gpk::tcpipInitialize();
-	::gpk::SIPv4															& addressClient				= app.Client.Connection.AddressLocal		= {};
-	::gpk::SIPv4															& addressServer				= app.Client.Connection.AddressRemote		= {{192, 168, 1, 79}, 6667,};
+	::gpk::SIPv4															& addressClient				= app.Client.AddressLocal		= {};
+	::gpk::SIPv4															& addressServer				= app.Client.AddressRemote		= {{192, 168, 1, 79}, 6667,};
 	::gpk::tcpipAddress(addressClient.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient);
 	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressServer);
 	return 0; 
