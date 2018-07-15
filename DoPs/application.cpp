@@ -13,7 +13,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	server.Listening													= false;
 	char																	commandbytes	[256]		= {};
 	::gpk::view_stream<char>												commandToSend				= {commandbytes};
-	::gpk::SEndpointCommand													command						= {::gpk::ENDPOINT_COMMAND_DISCONNECT, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
+	::gpk::SEndpointCommand													command						= {::gpk::ENDPOINT_COMMAND_DISCONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
 	commandToSend.write_pod(command);
 
 	// Set family and port */

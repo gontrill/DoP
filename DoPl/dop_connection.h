@@ -18,8 +18,6 @@ namespace dop
 		::gpk::SIPv4							AddressRemote				= {};
 		SOCKET									SocketReceive				= INVALID_SOCKET;	// To local address.
 		SOCKET									SocketSend					= INVALID_SOCKET;	// To local address.
-		::dop::SConnection						ConnectionReceive			= {};
-		::dop::SConnection						ConnectionSend				= {};
 	};
 
 	::gpk::error_t							commandByteSend				(SOCKET socket, const ::gpk::SIPv4 & addressRemote, const ::gpk::SEndpointCommand & commandToSend);

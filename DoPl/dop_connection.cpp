@@ -22,10 +22,3 @@
 	addressRemote.Port							= ntohs(sa_remote.sin_port);
 	return 0; 
 }
-
-// 1 -- El cliente  crea el socket send y envía el pedido de conexión. 
-// 2 -- El servidor crea un socket send y envía el pedido de conexión junto con el puerto del socket send. 
-// 3 -- El cliente  crea el socket receive y envía el pedido de conexión junto con el puerto receive al socket send en el servidor.
-// 4 -- El servidor crea el socket receive y envía la confirmación al socket receive del cliente junto con el puerto del socket receive del servidor.
-// 5 -- El cliente  envía la confirmación de la conexión a través del socket send al socket receive del servidor.
-// 6 -- El servidor envía la confirmación de la conexión a través del socket send al socket receive del cliente.
