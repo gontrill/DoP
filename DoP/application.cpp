@@ -64,7 +64,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	return 0; 
 }
 
-			int														run							(::gme::SClient& client);
+			int														run							(::dop::STCPIPNode& client);
 			::gpk::error_t											update						(::gme::SApplication & app, bool exitSignal)	{ 
 	//::gpk::STimer															timer;
 	retval_info_if(::gpk::APPLICATION_STATE_EXIT, exitSignal, "Exit requested by runtime.");

@@ -62,19 +62,19 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 	switch(in_command.Command) {
 	default	: break;
 	case ::gpk::ENDPOINT_COMMAND_TIME:
-		{	// Check for time request */
+		{	// Check for time request
 		info_printf("Processing TIME request.");
 		::std::chrono::system_clock::time_point				nowclock								= std::chrono::system_clock::now();
 		const int64_t										current_time							= std::chrono::system_clock::to_time_t(nowclock);
 		::gpk::view_stream<char>							commandToSend							= {send_buffer};
-		send_command									= {::gpk::ENDPOINT_COMMAND_TIME, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};
+		send_command									= {::gpk::ENDPOINT_COMMAND_TIME, 8, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};
 		commandToSend.write_pod(send_command);
 		commandToSend.write_pod(current_time);
 		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.");
 		}
 		break;
 	case ::gpk::ENDPOINT_COMMAND_PING:
-		{	// Check for ping request */
+		{	// Check for ping request
 		info_printf("Processing PING request.");
 		::gpk::view_stream<char>							commandToSend							= {send_buffer};
 		send_command									= {::gpk::ENDPOINT_COMMAND_PING, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};

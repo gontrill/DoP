@@ -34,6 +34,7 @@ namespace dop
 		::gpk::array_obj<STCPIPEndpointMessage>								QueueReceive						= {};
 		::gpk::SIPv4														AddressLocal						= {};
 		::gpk::SIPv4														AddressRemote						= {};
+		::gpk::SIPv4														AddressConnection					= {};
 		int64_t																RemoteTime							= 0;
 		uint32_t															TimeoutConnect						= (uint32_t)-1;
 		uint32_t															TimeoutLink							= (uint32_t)-1;

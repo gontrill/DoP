@@ -3,6 +3,7 @@
 #include "gpk_tcpip.h"
 
 #include "dop_connection.h"
+#include "dop_tcpip_node_udp.h"
 
 #include <mutex>
 
@@ -29,7 +30,8 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 		::std::mutex														LockGUI;
 		::std::mutex														LockRender;
 
-		SClient																Client								= {};
+		//SClient																Client								= {};
+		::dop::STCPIPNode													Client								= {};
 
 																			SApplication						(::gpk::SRuntimeValues& runtimeValues)	noexcept	: Framework(runtimeValues)		{}
 	};
