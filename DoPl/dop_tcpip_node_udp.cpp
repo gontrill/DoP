@@ -45,11 +45,55 @@
 
 ::gpk::error_t														tcpipNodeHandshake						(::dop::STCPIPNode & node)										{
 	ree_if(node.AddressRemote.Port == 0, "Invalid remote port.");
-
+	gpk_necall(node.QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST}}), "Out of memory?");
 	return 0;	
 }
 
 ::gpk::error_t														dop::tcpipNodeAccept					(::dop::STCPIPNode & node, const ::gpk::SIPv4 & addressRemote)	{
+	return 0;
+}
 
+static ::gpk::error_t												handleSentRequest					(::dop::STCPIPNode & node, ::dop::STCPIPEndpointMessage & message)											{ 
+	return 0; 
+}
+
+static ::gpk::error_t												handleSentResponse					(::dop::STCPIPNode & node, ::dop::STCPIPEndpointMessage & message)											{ 
+	return 0; 
+}
+static ::gpk::error_t												handleRequest						(::dop::STCPIPNode & node, ::dop::STCPIPEndpointMessage & message)											{ 
+	return 0; 
+}
+
+static ::gpk::error_t												handleResponse						(::dop::STCPIPNode & node, ::dop::STCPIPEndpointMessage & message)											{ 
+	return 0; 
+}
+static ::gpk::error_t												sendRequest							(::dop::STCPIPNode & node, ::dop::STCPIPEndpointMessage & message)											{ 
+	return 0; 
+}
+
+static ::gpk::error_t												sendResponse						(::dop::STCPIPNode & node, ::dop::STCPIPEndpointMessage & message)											{ return 0; }
+
+::gpk::error_t														dop::tcpipNodeUpdate					(::dop::STCPIPNode & node)	{
+	for(uint32_t iReceived = 0; iReceived < node.QueueReceive.size(); ++iReceived) {
+		::dop::STCPIPEndpointMessage											& message								= node.QueueReceive[iReceived];
+		switch(message.Command.Type) {
+		case ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST	: handleRequest	(node, message); break;
+		case ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE	: handleResponse(node, message); break;
+		}
+	}
+	for(uint32_t iSend = 0; iSend < node.QueueSend.size(); ++iSend) {
+		::dop::STCPIPEndpointMessage											& message								= node.QueueSend[iSend];
+		switch(message.Command.Type) {
+		case ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST	: sendRequest	(node, message); break;
+		case ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE	: sendResponse	(node, message); break;
+		}
+	}
+	for(uint32_t iSent = 0; iSent < node.QueueSent.size(); ++iSent) {
+		::dop::STCPIPEndpointMessage											& message								= node.QueueSent[iSent];
+		switch(message.Command.Type) {
+		case ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST	: handleSentRequest	(node, message); break;
+		case ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE	: handleSentResponse(node, message); break;
+		}
+	}
 	return 0;
 }

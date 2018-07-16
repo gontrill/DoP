@@ -10,7 +10,7 @@
 #include <socketapi.h>
 
 		int								run							(::gme::SClient& client)										{
-	::gpk::SEndpointCommand						command						= {::gpk::ENDPOINT_COMMAND_PING, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
+	::gpk::SEndpointCommand						command						= {::gpk::ENDPOINT_COMMAND_CONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
 
 	char										recv_buffer	[256]			= {};					// Host name of this computer */
 	SOCKET										sd							= ::socket(AF_INET, SOCK_DGRAM, 0);		// Open a datagram socket */
@@ -60,6 +60,19 @@
 			{
 			::gpk::view_stream<char>					inputCommand				= {recv_buffer};
 			info_printf("Received PING response.");
+			if(SOCKET_ERROR == ::recvfrom(sd, inputCommand.begin(), (int)(sizeof(::gpk::SEndpointCommand)), MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
+#if defined(GPK_WINDOWS)
+				warning_printf("recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());
+				::WSASetLastError(0);
+#endif
+			}
+			inputCommand.read_pod(command);
+			}
+			break;
+		case ::gpk::ENDPOINT_COMMAND_CONNECT:
+			{
+			::gpk::view_stream<char>					inputCommand				= {recv_buffer};
+			info_printf("Received CONNECT response.");
 			if(SOCKET_ERROR == ::recvfrom(sd, inputCommand.begin(), (int)(sizeof(::gpk::SEndpointCommand)), MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
 #if defined(GPK_WINDOWS)
 				warning_printf("recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());

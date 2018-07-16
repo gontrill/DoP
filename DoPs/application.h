@@ -19,6 +19,7 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 					bool																Running						= false;
 					::gpk::array_obj<::gpk::ptr_obj<::dop::STCPIPNode>>					Clients						= {};		
 					SOCKET																Socket						= INVALID_SOCKET;
+					::std::mutex														LockClients					;
 	};
 
 	struct SApplication {
@@ -32,6 +33,8 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 
 																						SApplication				(::gpk::SRuntimeValues& runtimeValues)	: Framework(runtimeValues)		{}
 	};
+
+				::gpk::error_t														serverUpdate				(SServer& server);
 
 	typedef		::std::lock_guard<::std::mutex>										mutex_guard;
 
