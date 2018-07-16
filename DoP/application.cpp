@@ -13,6 +13,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	return ::gpk::mainWindowDestroy(app.Framework.MainDisplay); 
 }
 
+			int														run							(::dop::STCPIPNode& client);
 			::gpk::error_t											setup						(::gme::SApplication & app)						{ 
 	::gpk::SFramework														& framework					= app.Framework;
 	::gpk::SDisplay															& mainWindow				= framework.MainDisplay;
@@ -37,9 +38,12 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 
 	::gpk::tcpipInitialize();
 	::gpk::SIPv4															& addressClient				= app.Client.AddressLocal		= {};
-	::gpk::SIPv4															& addressServer				= app.Client.AddressRemote		= {{192, 168, 1, 79}, 6667,};
+	//::gpk::SIPv4															& addressServer				= app.Client.AddressRemote		= {}; //{{192, 168, 1, 79}, 6667,};
+	::gpk::SIPv4															& addressConn				= app.Client.AddressConnection	= {{192, 168, 1, 79}, 6667,};
 	::gpk::tcpipAddress(addressClient.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient);
-	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressServer);
+	//::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressServer);
+	::gpk::tcpipAddress(addressConn.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressConn);
+	::run(app.Client);
 	return 0; 
 }
 
@@ -64,7 +68,6 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	return 0; 
 }
 
-			int														run							(::dop::STCPIPNode& client);
 			::gpk::error_t											update						(::gme::SApplication & app, bool exitSignal)	{ 
 	//::gpk::STimer															timer;
 	retval_info_if(::gpk::APPLICATION_STATE_EXIT, exitSignal, "Exit requested by runtime.");
@@ -75,7 +78,6 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::SFramework														& framework					= app.Framework;
 	retval_info_if(::gpk::APPLICATION_STATE_EXIT, ::gpk::APPLICATION_STATE_EXIT == ::gpk::updateFramework(app.Framework), "Exit requested by framework update.");
 
-	run(app.Client);
 	::gpk::SGUI																& gui						= framework.GUI;
 	{
 		::gme::mutex_guard														lock						(app.LockGUI);
@@ -96,7 +98,6 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 				return 1;
 		}
 	}
-
 	//timer.Frame();
 	//warning_printf("Update time: %f.", (float)timer.LastTimeSeconds);
 	return 0; 

@@ -22,8 +22,9 @@ int												serverListen							(::gme::SServer& server)						{
 
 static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::SEndpointCommand in_command, const ::gpk::SIPv4& addressLocal, sockaddr_in sa_client)		{
 	info_printf("Processing CONNECT request.");
-	switch(in_command.PayloadBytes) {
-	case 0: {
+	switch(in_command.Payload) {
+	case 0: 
+		{
 		::gpk::ptr_obj<::dop::STCPIPNode>					client;
 		client->AddressLocal							= server.Address;
 		::gpk::tcpipAddressFromSockaddr(sa_client, client->AddressRemote);
@@ -34,19 +35,71 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 
 		client->SocketSend								= socket(AF_INET, SOCK_DGRAM, 0);
 		ree_if(client->SocketSend == INVALID_SOCKET, "Could not create socket.");
-		::gpk::auto_socket_close					sdsafe						= {};
-		sdsafe.Handle							= client->SocketSend;
-		::gpk::SIPv4								& addrLocal					= client->AddressLocal;
-		sockaddr_in									sa_local					; /* Information about the client */
+		::gpk::auto_socket_close							sdsafe						= {};
+		sdsafe.Handle									= client->SocketSend;
+		::gpk::SIPv4										& addrLocal					= client->AddressLocal;
+		sockaddr_in											sa_local					; /* Information about the client */
 		::gpk::tcpipAddressToSockaddr(addrLocal, sa_local);
 		gpk_necall(::bind(client->SocketSend, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
+		sockaddr_in			sin;
+		int32_t				len			= (int32_t)sizeof(sin);
+		gpk_necall(::getsockname(client->SocketSend, (sockaddr *)&sin, &len), "Failed to get socket information.");
+		client->AddressLocal.Port				= ntohs(sin.sin_port);
+		info_printf("Socket Send port number: %i.", (int32_t)client->AddressLocal.Port);
+		{
+			::gme::mutex_guard									lock								(server.LockClients);
+			gpk_necall(server.Clients.push_back(client), "Out of memory?");
+		}
 		sdsafe.Handle							= 0;
+		} break;
+	case 1: 
+		{
+		::gpk::ptr_obj<::dop::STCPIPNode>					client;
+		::gpk::SIPv4										remoteJustReceived						;;
+		::gpk::tcpipAddressFromSockaddr(sa_client, remoteJustReceived);
+		for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
+			if( server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			) {
+				client										= server.Clients[iClient];
+				break;
+			}
+		}
+		ree_if(0 == client, "Client not found for address: %u.%u.%u.%u:%u."
+			, (uint32_t)remoteJustReceived.IP[0]
+			, (uint32_t)remoteJustReceived.IP[1]
+			, (uint32_t)remoteJustReceived.IP[2]
+			, (uint32_t)remoteJustReceived.IP[3]
+			, (uint32_t)remoteJustReceived.Port
+			);
+		client->AddressLocal							= server.Address;
+		::gpk::tcpipAddressFromSockaddr(sa_client, client->AddressRemote);
+		client->Mode									= ::dop::TCPIP_NODE_MODE_HOST;
+		client->State									= ::dop::TCPIP_NODE_STATE_HANDSHAKE_0;
+		client->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
+		client->AddressLocal.Port						= 0;
+		client->SocketReceive							= socket(AF_INET, SOCK_DGRAM, 0);
+		ree_if(client->SocketSend == INVALID_SOCKET, "Could not create socket.");
+		::gpk::auto_socket_close							sdsafe						= {};
+		sdsafe.Handle									= client->SocketSend;
+		::gpk::SIPv4										& addrLocal					= client->AddressLocal;
+		sockaddr_in											sa_local					; /* Information about the client */
+		::gpk::tcpipAddressToSockaddr(addrLocal, sa_local);
+		gpk_necall(::bind(client->SocketSend, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
+		sockaddr_in											sin;
+		int32_t												len							= (int32_t)sizeof(sin);
+		gpk_necall(::getsockname(client->SocketSend, (sockaddr *)&sin, &len), "Failed to get socket information.");
+		client->AddressLocal.Port						= ntohs(sin.sin_port);
+		info_printf("Socket Receive port number: %i.", (int32_t)client->AddressLocal.Port);
 		{
 			::gme::mutex_guard									lock								(server.LockClients);
 			server.Clients.push_back(client);
 		}
-	} break;
-	case 1: break;
+		sdsafe.Handle							= 0;
+		}
+		break;
 	case 2: break;
 	case 3: break;
 	}
@@ -203,7 +256,6 @@ static void								runClientUpdate							(void* server)		{
 														);
 	return 0;
 }
-
 
 	//int32_t value = 1000;
 	//setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&value, 4);
