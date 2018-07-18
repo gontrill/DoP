@@ -84,11 +84,8 @@
 					client.State						= ::dop::TCPIP_NODE_STATE_HANDSHAKE_1;
 					break;
 				case 1: 
-					{ 
 					::gpk::tcpipAddressFromSockaddr(sa_remote, client.AddressRemote); 
-					command								= {::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
-					gpk_necall(::sendto(sdSend, (const char*)&command, (int)sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_remote, sizeof(sockaddr_in)), "Error transmitting data.");
-					} 
+					client.QueueSend.push_back({::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST});
 					client.State						= ::dop::TCPIP_NODE_STATE_HANDSHAKE_2;
 					break;
 				case 2: {

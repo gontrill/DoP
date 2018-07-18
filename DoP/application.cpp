@@ -104,6 +104,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 
 	::dop::tcpipNodeUpdate(app.Client);
 	::gme::clientUpdate(app.Client);
+	app.Client.QueueSent.clear();
 
 	//timer.Frame();
 	//warning_printf("Update time: %f.", (float)timer.LastTimeSeconds);
