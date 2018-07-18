@@ -98,7 +98,13 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 				return 1;
 		}
 	}
+
+	if(app.Client.State == ::dop::TCPIP_NODE_STATE_IDLE)
+		app.Client.QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_PING}, 0, 0});
+
 	::dop::tcpipNodeUpdate(app.Client);
+	::gme::clientUpdate(app.Client);
+
 	//timer.Frame();
 	//warning_printf("Update time: %f.", (float)timer.LastTimeSeconds);
 	return 0; 

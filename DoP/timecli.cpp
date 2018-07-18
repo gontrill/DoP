@@ -92,7 +92,8 @@
 					client.State						= ::dop::TCPIP_NODE_STATE_HANDSHAKE_2;
 					break;
 				case 2: {
-					info_printf("Connection successful.", (uint32_t)command.Payload);
+					info_printf("Connection successfully established.", (uint32_t)command.Payload);
+					client.State						= ::dop::TCPIP_NODE_STATE_IDLE;
 				} break;
 				}
 				}
@@ -138,6 +139,38 @@ static	void							tcpipNodeConnect			(void * client)													{
 	_beginthread(::tcpipNodeConnect, 0, &client);
 	return 0;
 }
+
+::gpk::error_t														gme::clientUpdate				(::dop::STCPIPNode & client)			{
+	//::gme::mutex_guard														lock							(server.LockClients);
+	//for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
+	//	::dop::STCPIPNode														& client						= *server.Clients[iClient];
+		::dop::tcpipNodeUpdate(client);
+		for(uint32_t iSend = 0; iSend < client.QueueSend.size(); ++iSend) {
+			::dop::STCPIPEndpointMessage							& message				= client.QueueSend[iSend];
+			::gpk::array_pod<byte_t>								sendBuffer;
+			sendBuffer.append((byte_t*)&message.Command, sizeof(::gpk::SEndpointCommand));
+			if(message.Payload.size())
+				sendBuffer.append(message.Payload.begin(), message.Payload.size());
+
+			sockaddr_in											sa_client								= {};			// Information about the client */
+			::gpk::tcpipAddressToSockaddr(client.AddressRemote, sa_client);
+			info_printf("Sending command {%u, %u, %u} to %u.%u.%u.%u:%u."	, (uint32_t)message.Command.Command
+																			, (uint32_t)message.Command.Payload
+																			, (uint32_t)message.Command.Type
+																			, (uint32_t)client.AddressRemote.IP[0]
+																			, (uint32_t)client.AddressRemote.IP[1]
+																			, (uint32_t)client.AddressRemote.IP[2]
+																			, (uint32_t)client.AddressRemote.IP[3]
+																			, (uint32_t)client.AddressRemote.Port
+																			);
+			ree_if(sendto((message.Command.Command == ::gpk::ENDPOINT_COMMAND_CONNECT && message.Command.Payload == 1) ? client.SocketReceive : client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
+			client.QueueSent.push_back(message);
+		}
+		client.QueueSend.clear();
+	//}
+	return 0;
+}
+
 
 //		case ::gpk::ENDPOINT_COMMAND_TIME:
 //			{

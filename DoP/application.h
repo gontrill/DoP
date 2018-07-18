@@ -28,7 +28,7 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 	};
 
 	typedef ::std::lock_guard<::std::mutex>								mutex_guard;
-
+	::gpk::error_t														clientUpdate						(::dop::STCPIPNode & client);
 } // namespace
 
 #endif // APPLICATION_H_2078934982734

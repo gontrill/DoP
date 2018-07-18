@@ -127,7 +127,6 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 		client->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
 		}
 		break;
-	case 3: break;
 	}
 	sa_client;addressLocal;
 	return 0;
@@ -162,9 +161,7 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 		}
 		break;
 	case ::gpk::ENDPOINT_COMMAND_CONNECT:
-		{	// Check for ping request */
 		handleConnect(server, in_command, addressLocal, sa_client);
-		}
 		break;
 	case ::gpk::ENDPOINT_COMMAND_DISCONNECT:
 		{	// Check for ping request */
@@ -218,12 +215,21 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 							::gpk::SEndpointCommand								command								= {};
 							sockaddr_in											sa_client							= {};			// Information about the client */
 							int32_t												bytes_received						= recvfrom(client->SocketReceive, (char*)&command, sizeof(::gpk::SEndpointCommand), MSG_PEEK, (sockaddr*)&sa_client, &client_length);		// Receive bytes from client */
+							::gpk::SIPv4										addrLocal							;
+							::gpk::tcpipAddressFromSockaddr(sa_client, addrLocal);
 							ree_if(errored(bytes_received), "Failed to receive from client %u.", indexClient);
 							switch(command.Command) {
 							case ::gpk::ENDPOINT_COMMAND_CONNECT: 
 								handleConnect(server, command, client->AddressLocal, sa_client);
 								break;
 							default:
+								info_printf("Received command from %u.%u.%u.%u:%u."	, (uint32_t)addrLocal.IP[0]
+																					, (uint32_t)addrLocal.IP[1]
+																					, (uint32_t)addrLocal.IP[2]
+																					, (uint32_t)addrLocal.IP[3]
+																					, (uint32_t)addrLocal.Port
+																					);
+
 								break;
 							}
 							recvfrom(client->SocketReceive, (char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_client, &client_length);
@@ -291,19 +297,6 @@ static void								runClientUpdate							(void* server)		{
 	return 0;
 }
 
-	//int32_t value = 1000;
-	//setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&value, 4);
-	// Set the socket I/O mode: In this case FIONBIO
-	// enables or disables the blocking mode for the
-	// socket based on the numerical value of iMode.
-	// If iMode = 0, blocking is enabled;
-	// If iMode != 0, non-blocking mode is enabled.
-	//u_long	iMode = 1; // 1 == nonbolcking
-	//int32_t iResult = ioctlsocket(sd, FIONBIO, &iMode);
-	//if (iResult != NO_ERROR)
-	//	printf("ioctlsocket failed with error: %ld\n", iResult);
-
-
 ::gpk::error_t														gme::serverUpdate				(SServer& server)			{
 	::gme::mutex_guard														lock							(server.LockClients);
 	for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
@@ -333,5 +326,4 @@ static void								runClientUpdate							(void* server)		{
 		client.QueueSend.clear();
 	}
 	return 0;
-
 }
