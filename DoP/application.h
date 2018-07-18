@@ -12,14 +12,6 @@
 
 namespace gme // I'm gonna use a different namespace in order to test a few things about the macros.
 {
-	struct SClient {
-		::gpk::SIPv4														AddressLocal						= {};
-		::gpk::SIPv4														AddressRemote						= {};
-		uint16_t															PortReceive							= 0;
-		SOCKET																Socket								= INVALID_SOCKET;
-		int64_t																Time								= 0;
-	};
-
 	struct SApplication {
 		::gpk::SFramework													Framework;
 		::gpk::SImage<::gpk::SColorBGRA>									TextureFont							= {};
@@ -30,7 +22,6 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 		::std::mutex														LockGUI;
 		::std::mutex														LockRender;
 
-		//SClient																Client								= {};
 		::dop::STCPIPNode													Client								= {};
 
 																			SApplication						(::gpk::SRuntimeValues& runtimeValues)	noexcept	: Framework(runtimeValues)		{}

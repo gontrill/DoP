@@ -21,7 +21,15 @@ int												serverListen							(::gme::SServer& server)						{
 }
 
 static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::SEndpointCommand in_command, const ::gpk::SIPv4& addressLocal, sockaddr_in sa_client)		{
-	info_printf("Processing CONNECT request.");
+	::gpk::SIPv4										remoteJustReceived						;;
+	::gpk::tcpipAddressFromSockaddr(sa_client, remoteJustReceived);
+	info_printf("Processing CONNECT request. Stage: %u. From address: %u.%u.%u.%u:%u.", (uint32_t)in_command.Payload
+		, (uint32_t)remoteJustReceived.IP[0]
+		, (uint32_t)remoteJustReceived.IP[1]
+		, (uint32_t)remoteJustReceived.IP[2]
+		, (uint32_t)remoteJustReceived.IP[3]
+		, (uint32_t)remoteJustReceived.Port
+		);
 	switch(in_command.Payload) {
 	case 0: 
 		{
@@ -55,8 +63,6 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 	case 1: 
 		{
 		::gpk::ptr_obj<::dop::STCPIPNode>					client;
-		::gpk::SIPv4										remoteJustReceived						;;
-		::gpk::tcpipAddressFromSockaddr(sa_client, remoteJustReceived);
 		for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
 			if( server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
 			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
@@ -75,32 +81,52 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 			, (uint32_t)remoteJustReceived.Port
 			);
 		client->AddressLocal							= server.Address;
+		client->PortReceive								= client->AddressRemote.Port;
 		::gpk::tcpipAddressFromSockaddr(sa_client, client->AddressRemote);
 		client->Mode									= ::dop::TCPIP_NODE_MODE_HOST;
-		client->State									= ::dop::TCPIP_NODE_STATE_HANDSHAKE_0;
-		client->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
+		client->State									= ::dop::TCPIP_NODE_STATE_HANDSHAKE_1;
+		client->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 1, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
 		client->AddressLocal.Port						= 0;
 		client->SocketReceive							= socket(AF_INET, SOCK_DGRAM, 0);
-		ree_if(client->SocketSend == INVALID_SOCKET, "Could not create socket.");
+		ree_if(client->SocketReceive == INVALID_SOCKET, "Could not create socket.");
 		::gpk::auto_socket_close							sdsafe						= {};
-		sdsafe.Handle									= client->SocketSend;
+		sdsafe.Handle									= client->SocketReceive;
 		::gpk::SIPv4										& addrLocal					= client->AddressLocal;
 		sockaddr_in											sa_local					; /* Information about the client */
 		::gpk::tcpipAddressToSockaddr(addrLocal, sa_local);
-		gpk_necall(::bind(client->SocketSend, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
+		gpk_necall(::bind(client->SocketReceive, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
 		sockaddr_in											sin;
 		int32_t												len							= (int32_t)sizeof(sin);
-		gpk_necall(::getsockname(client->SocketSend, (sockaddr *)&sin, &len), "Failed to get socket information.");
+		gpk_necall(::getsockname(client->SocketReceive, (sockaddr *)&sin, &len), "Failed to get socket information.");
 		client->AddressLocal.Port						= ntohs(sin.sin_port);
 		info_printf("Socket Receive port number: %i.", (int32_t)client->AddressLocal.Port);
-		{
-			::gme::mutex_guard									lock								(server.LockClients);
-			server.Clients.push_back(client);
-		}
+		//{
+		//	::gme::mutex_guard									lock								(server.LockClients);
+		//	server.Clients.push_back(client);
+		//}
 		sdsafe.Handle							= 0;
 		}
 		break;
-	case 2: break;
+	case 2: 
+		{
+		::gpk::ptr_obj<::dop::STCPIPNode>					client;
+		for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
+			if( server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			) {
+				client										= server.Clients[iClient];
+				break;
+			}
+		}
+		client->State									= ::dop::TCPIP_NODE_STATE_HANDSHAKE_2;
+		uint16_t											actualPortReceive						= client->AddressRemote.Port;
+		client->AddressRemote.Port						= client->PortReceive;
+		client->PortReceive								= actualPortReceive;
+		client->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
+		}
+		break;
 	case 3: break;
 	}
 	sa_client;addressLocal;
@@ -161,10 +187,10 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 ::gpk::error_t									runClientUpdate							(::gme::SServer& server)		{
 	while(server.Listening)	{
 		fd_set												sread;
-		fd_set												sexcp;
+		//fd_set												sexcp;
 		::gpk::array_pod<SOCKET>							reads	;
-		::gpk::array_pod<SOCKET>							writs	;
-		::gpk::array_pod<SOCKET>							excps	;
+		//::gpk::array_pod<SOCKET>							writs	;
+		//::gpk::array_pod<SOCKET>							excps	;
 		::gpk::array_pod<int32_t>							clients	;
 		{
 			::gme::mutex_guard									lock								(server.LockClients);
@@ -177,7 +203,7 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 		}
 		sread.fd_count									= clients.size();
 		if(sread.fd_count) {
-			gpk_necall(select(0, &sread, 0, &sexcp, 0), "Fuck!");
+			gpk_necall(select(0, &sread, 0, 0, 0), "Fuck!");
 			{
 				::gme::mutex_guard									lock								(server.LockClients);
 				for(uint32_t iReady = 0; iReady < sread.fd_count; ++iReady) {
@@ -192,7 +218,15 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 							::gpk::SEndpointCommand								command								= {};
 							sockaddr_in											sa_client							= {};			// Information about the client */
 							int32_t												bytes_received						= recvfrom(client->SocketReceive, (char*)&command, sizeof(::gpk::SEndpointCommand), MSG_PEEK, (sockaddr*)&sa_client, &client_length);		// Receive bytes from client */
-							ree_if(errored(bytes_received), "");
+							ree_if(errored(bytes_received), "Failed to receive from client %u.", indexClient);
+							switch(command.Command) {
+							case ::gpk::ENDPOINT_COMMAND_CONNECT: 
+								handleConnect(server, command, client->AddressLocal, sa_client);
+								break;
+							default:
+								break;
+							}
+							recvfrom(client->SocketReceive, (char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_client, &client_length);
 						}
 					}
 				}
@@ -284,7 +318,16 @@ static void								runClientUpdate							(void* server)		{
 
 			sockaddr_in											sa_client								= {};			// Information about the client */
 			::gpk::tcpipAddressToSockaddr(client.AddressRemote, sa_client);
-			ree_if(sendto(client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
+			info_printf("Sending command {%u, %u, %u} to %u.%u.%u.%u:%u."	, (uint32_t)message.Command.Command
+																			, (uint32_t)message.Command.Payload
+																			, (uint32_t)message.Command.Type
+																			, (uint32_t)client.AddressRemote.IP[0]
+																			, (uint32_t)client.AddressRemote.IP[1]
+																			, (uint32_t)client.AddressRemote.IP[2]
+																			, (uint32_t)client.AddressRemote.IP[3]
+																			, (uint32_t)client.AddressRemote.Port
+																			);
+			ree_if(sendto((message.Command.Command == ::gpk::ENDPOINT_COMMAND_CONNECT && message.Command.Payload == 1) ? client.SocketReceive : client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
 			client.QueueSent.push_back(message);
 		}
 		client.QueueSend.clear();

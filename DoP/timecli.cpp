@@ -14,44 +14,53 @@
 #endif
 
 		::gpk::error_t					tcpipNodeConnect			(::dop::STCPIPNode& client)										{
+	::gpk::auto_socket_close					sdsafeS						= {};
+	::gpk::auto_socket_close					sdsafeR						= {};
+
 	::gpk::SEndpointCommand						command						= {::gpk::ENDPOINT_COMMAND_CONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
 
 	char										recv_buffer	[256]			= {};					// Host name of this computer */
-	SOCKET										& sd						= client.SocketSend = ::socket(AF_INET, SOCK_DGRAM, 0);		// Open a datagram socket */
-	ree_if(sd == INVALID_SOCKET, "Could not create socket.");
-	::gpk::auto_socket_close					sdsafe						= {};
-	sdsafe.Handle							= sd;
+	SOCKET										& sdSend					= client.SocketSend = ::socket(AF_INET, SOCK_DGRAM, 0);		// Open a datagram socket */
+	ree_if(sdSend == INVALID_SOCKET, "Could not create socket.");
+	sdsafeS.Handle							= sdSend;
+	SOCKET										& sdRecv					= client.SocketReceive = ::socket(AF_INET, SOCK_DGRAM, 0);		// Open a datagram socket */
+	ree_if(sdRecv == INVALID_SOCKET, "Could not create socket.");
+	sdsafeR.Handle							= sdRecv;
 
 	::gpk::SIPv4								& addrLocal					= client.AddressLocal;
 	sockaddr_in									sa_local					; /* Information about the client */
+
 	::gpk::tcpipAddressToSockaddr(addrLocal, sa_local);
-	gpk_necall(::bind(sd, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
+	gpk_necall(::bind(sdRecv, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
+	sa_local.sin_port						= 0;
+	gpk_necall(::bind(sdSend, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
 
 	::gpk::SIPv4								& addrConn					= client.AddressConnection;// = {{192, 168, 1, 79}, 6667, };
 	sockaddr_in									sa_remote					;					/* Information about the server */
 	::gpk::tcpipAddressToSockaddr(addrConn, sa_remote);
-	gpk_necall(::sendto(sd, (const char*)&command, (int)sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_remote, sizeof(sockaddr_in)), "Error transmitting data.");
+	gpk_necall(::sendto(sdRecv, (const char*)&command, (int)sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_remote, sizeof(sockaddr_in)), "Error transmitting data.");
 
 	client.State							= ::dop::TCPIP_NODE_STATE_HANDSHAKE_0;
 	while(client.State != ::dop::TCPIP_NODE_STATE_DISCONNECTED) {
 		int											server_length				= sizeof(sockaddr_in);	/* Length of server struct */
-		if(SOCKET_ERROR == ::recvfrom(sd, (char *)&command, (int)sizeof(::gpk::SEndpointCommand), MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
-	#if defined(GPK_WINDOWS)
+		SOCKET										sdRead						= (client.State == ::dop::TCPIP_NODE_STATE_HANDSHAKE_1) ? sdSend : sdRecv;
+		if(SOCKET_ERROR == ::recvfrom(sdRead, (char *)&command, (int)sizeof(::gpk::SEndpointCommand), MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
+#if defined(GPK_WINDOWS)
 			ree_if(::WSAGetLastError() != WSAEMSGSIZE, "recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());
-	#endif
+#endif
 		}
 		if(command.Type == ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE) {
 			switch(command.Command) {
 			default:
 				{
-				info_printf("Received generic response.");
+				info_printf("Received unknown response.");
 				::gpk::view_stream<char>					inputCommand				= {recv_buffer};
 				const uint32_t								sizeToRead					= sizeof(::gpk::SEndpointCommand) + command.Payload;
-				if(SOCKET_ERROR == ::recvfrom(sd, inputCommand.begin(), (int)sizeToRead, MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
-	#if defined(GPK_WINDOWS)
+				if(SOCKET_ERROR == ::recvfrom(sdRecv, inputCommand.begin(), (int)sizeToRead, MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
+#if defined(GPK_WINDOWS)
 					warning_printf("recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());
 					::WSASetLastError(0);
-	#endif
+#endif
 				}
 				::dop::STCPIPEndpointMessage				msg							= {};
 				msg.Payload.resize(command.Payload);
@@ -67,11 +76,24 @@
 				case 0: 
 					{ 
 					::gpk::tcpipAddressFromSockaddr(sa_remote, client.AddressRemote); 
+					client.PortReceive					= client.AddressRemote.Port;
+					command								= {::gpk::ENDPOINT_COMMAND_CONNECT, 1, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
+					sa_remote.sin_port					= htons(client.AddressConnection.Port);
+					gpk_necall(::sendto(sdSend, (const char*)&command, (int)sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_remote, sizeof(sockaddr_in)), "Error transmitting data.");
 					} 
-					client.State							= ::dop::TCPIP_NODE_STATE_HANDSHAKE_1;
+					client.State						= ::dop::TCPIP_NODE_STATE_HANDSHAKE_1;
 					break;
-				case 1: {} break;
-				case 2: {} break;
+				case 1: 
+					{ 
+					::gpk::tcpipAddressFromSockaddr(sa_remote, client.AddressRemote); 
+					command								= {::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
+					gpk_necall(::sendto(sdSend, (const char*)&command, (int)sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_remote, sizeof(sockaddr_in)), "Error transmitting data.");
+					} 
+					client.State						= ::dop::TCPIP_NODE_STATE_HANDSHAKE_2;
+					break;
+				case 2: {
+					info_printf("Connection successful.", (uint32_t)command.Payload);
+				} break;
 				}
 				}
 				break;
@@ -80,7 +102,7 @@
 				info_printf("Received generic response.");
 				::gpk::view_stream<char>					inputCommand				= {recv_buffer};
 				const uint32_t								sizeToRead					= sizeof(::gpk::SEndpointCommand) + command.Payload;
-				if(SOCKET_ERROR == ::recvfrom(sd, inputCommand.begin(), (int)sizeToRead, MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
+				if(SOCKET_ERROR == ::recvfrom(sdRecv, inputCommand.begin(), (int)sizeToRead, MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
 	#if defined(GPK_WINDOWS)
 					warning_printf("recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());
 					::WSASetLastError(0);
@@ -97,10 +119,11 @@
 				break;
 			}
 		}
-		::recvfrom(sd, (char*)&command, (int)sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_remote, &server_length);
+		::recvfrom(sdRead, (char*)&command, (int)sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_remote, &server_length);
 		Sleep(10);
 	}
-	sdsafe.Handle							= INVALID_SOCKET;
+	sdsafeS.Handle							= INVALID_SOCKET;
+	sdsafeR.Handle							= INVALID_SOCKET;
 	safe_closesocket(client.SocketReceive);
 	safe_closesocket(client.SocketSend);
 	return 0;
