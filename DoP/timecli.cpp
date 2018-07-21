@@ -90,6 +90,10 @@
 					break;
 				case 2: {
 					info_printf("Connection successfully established.", (uint32_t)command.Payload);
+					int64_t									curTime						= {};
+					::dop::STCPIPEndpointMessage			msgToSend					= {{::gpk::ENDPOINT_COMMAND_TIME, 8, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST}, };
+					msgToSend.Payload.append((const byte_t*)&curTime, sizeof(int64_t));
+					client.QueueSend.push_back(msgToSend);
 					client.State						= ::dop::TCPIP_NODE_STATE_IDLE;
 				} break;
 				}
@@ -97,7 +101,7 @@
 				break;
 			case ::gpk::ENDPOINT_COMMAND_PAYLOAD:
 				{
-				info_printf("Received generic response.");
+				info_printf("Received PAYLOAD response.");
 				::gpk::view_stream<char>					inputCommand				= {recv_buffer};
 				const uint32_t								sizeToRead					= sizeof(::gpk::SEndpointCommand) + command.Payload;
 				if(SOCKET_ERROR == ::recvfrom(sdRecv, inputCommand.begin(), (int)sizeToRead, MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {

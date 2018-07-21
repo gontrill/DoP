@@ -5,7 +5,7 @@
 #include "gpk_endpoint_command.h"
 #include "gpk_view_stream.h"
 
-#include <time.h>
+#include "gpk_chrono.h"
 
 #if defined(GPK_WINDOWS)
 #	include "gpk_windows.h"
@@ -49,82 +49,99 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 		sockaddr_in											sa_local					; /* Information about the client */
 		::gpk::tcpipAddressToSockaddr(addrLocal, sa_local);
 		gpk_necall(::bind(client->SocketSend, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
-		sockaddr_in			sin;
-		int32_t				len			= (int32_t)sizeof(sin);
+		sockaddr_in											sin;
+		int32_t												len							= (int32_t)sizeof(sin);
 		gpk_necall(::getsockname(client->SocketSend, (sockaddr *)&sin, &len), "Failed to get socket information.");
-		client->AddressLocal.Port				= ntohs(sin.sin_port);
+		client->AddressLocal.Port						= ntohs(sin.sin_port);
 		info_printf("Socket Send port number: %i.", (int32_t)client->AddressLocal.Port);
 		{
 			::gme::mutex_guard									lock								(server.LockClients);
 			gpk_necall(server.Clients.push_back(client), "Out of memory?");
 		}
-		sdsafe.Handle							= 0;
+		sdsafe.Handle									= 0;
 		} break;
 	case 1: 
 		{
-		::gpk::ptr_obj<::dop::STCPIPNode>					client;
+		::dop::STCPIPNode									* pClientFound								= 0;
 		for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
-			if( server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
-			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
-			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
-			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			::dop::STCPIPNode									* pClientTest								= 0;
+			{
+				::gme::mutex_guard									lock				(server.LockClients);
+				pClientTest										= server.Clients[iClient];
+				if(0 == pClientTest)
+					continue;
+			}
+			if( pClientTest->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			 && pClientTest->AddressRemote.IP[1] == remoteJustReceived.IP[1]
+			 && pClientTest->AddressRemote.IP[2] == remoteJustReceived.IP[2]
+			 && pClientTest->AddressRemote.IP[3] == remoteJustReceived.IP[3]
 			) {
-				client										= server.Clients[iClient];
+				pClientFound									= pClientTest;
 				break;
 			}
 		}
-		ree_if(0 == client, "Client not found for address: %u.%u.%u.%u:%u."
+		ree_if(0 == pClientFound, "Client not found for address: %u.%u.%u.%u:%u."
 			, (uint32_t)remoteJustReceived.IP[0]
 			, (uint32_t)remoteJustReceived.IP[1]
 			, (uint32_t)remoteJustReceived.IP[2]
 			, (uint32_t)remoteJustReceived.IP[3]
 			, (uint32_t)remoteJustReceived.Port
 			);
-		client->AddressLocal							= server.Address;
-		client->PortReceive								= client->AddressRemote.Port;
-		::gpk::tcpipAddressFromSockaddr(sa_client, client->AddressRemote);
-		client->Mode									= ::dop::TCPIP_NODE_MODE_HOST;
-		client->State									= ::dop::TCPIP_NODE_STATE_HANDSHAKE_1;
-		client->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 1, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
-		client->AddressLocal.Port						= 0;
-		client->SocketReceive							= socket(AF_INET, SOCK_DGRAM, 0);
-		ree_if(client->SocketReceive == INVALID_SOCKET, "Could not create socket.");
+		pClientFound->AddressLocal						= server.Address;
+		pClientFound->PortReceive						= pClientFound->AddressRemote.Port;
+		::gpk::tcpipAddressFromSockaddr(sa_client, pClientFound->AddressRemote);
+		pClientFound->Mode								= ::dop::TCPIP_NODE_MODE_HOST;
+		pClientFound->State								= ::dop::TCPIP_NODE_STATE_HANDSHAKE_1;
+		pClientFound->AddressLocal.Port					= 0;
+		pClientFound->SocketReceive						= socket(AF_INET, SOCK_DGRAM, 0);
+		ree_if(pClientFound->SocketReceive == INVALID_SOCKET, "Could not create socket.");
 		::gpk::auto_socket_close							sdsafe						= {};
-		sdsafe.Handle									= client->SocketReceive;
-		::gpk::SIPv4										& addrLocal					= client->AddressLocal;
+		sdsafe.Handle									= pClientFound->SocketReceive;
+		::gpk::SIPv4										& addrLocal					= pClientFound->AddressLocal;
 		sockaddr_in											sa_local					; /* Information about the client */
 		::gpk::tcpipAddressToSockaddr(addrLocal, sa_local);
-		gpk_necall(::bind(client->SocketReceive, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
+		gpk_necall(::bind(pClientFound->SocketReceive, (sockaddr*)&sa_local, sizeof(sockaddr_in)), "Cannot bind address to socket.");
 		sockaddr_in											sin;
 		int32_t												len							= (int32_t)sizeof(sin);
-		gpk_necall(::getsockname(client->SocketReceive, (sockaddr *)&sin, &len), "Failed to get socket information.");
-		client->AddressLocal.Port						= ntohs(sin.sin_port);
-		info_printf("Socket Receive port number: %i.", (int32_t)client->AddressLocal.Port);
-		//{
-		//	::gme::mutex_guard									lock								(server.LockClients);
-		//	server.Clients.push_back(client);
-		//}
-		sdsafe.Handle							= 0;
+		gpk_necall(::getsockname(pClientFound->SocketReceive, (sockaddr *)&sin, &len), "Failed to get socket information.");
+		pClientFound->AddressLocal.Port					= ntohs(sin.sin_port);
+		info_printf("Socket Receive port number: %i.", (int32_t)pClientFound->AddressLocal.Port);
+		pClientFound->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 1, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
+		sdsafe.Handle									= 0;
 		}
 		break;
 	case 2: 
 		{
-		::gpk::ptr_obj<::dop::STCPIPNode>					client;
+		::dop::STCPIPNode									* pClientFound								= 0;
 		for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
-			if( server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
-			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
-			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
-			 && server.Clients[iClient]->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			::dop::STCPIPNode									* pClientTest								= 0;
+			{
+				::gme::mutex_guard									lock				(server.LockClients);
+				pClientTest										= server.Clients[iClient];
+				if(0 == pClientTest)
+					continue;
+			}
+			if( pClientTest->AddressRemote.IP[0] == remoteJustReceived.IP[0]
+			 && pClientTest->AddressRemote.IP[1] == remoteJustReceived.IP[1]
+			 && pClientTest->AddressRemote.IP[2] == remoteJustReceived.IP[2]
+			 && pClientTest->AddressRemote.IP[3] == remoteJustReceived.IP[3]
 			) {
-				client										= server.Clients[iClient];
+				pClientFound									= pClientTest;
 				break;
 			}
 		}
-		client->State									= ::dop::TCPIP_NODE_STATE_HANDSHAKE_2;
-		uint16_t											actualPortReceive						= client->AddressRemote.Port;
-		client->AddressRemote.Port						= client->PortReceive;
-		client->PortReceive								= actualPortReceive;
-		client->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
+		ree_if(0 == pClientFound, "Client not found for address: %u.%u.%u.%u:%u."
+			, (uint32_t)remoteJustReceived.IP[0]
+			, (uint32_t)remoteJustReceived.IP[1]
+			, (uint32_t)remoteJustReceived.IP[2]
+			, (uint32_t)remoteJustReceived.IP[3]
+			, (uint32_t)remoteJustReceived.Port
+			);
+		pClientFound->State								= ::dop::TCPIP_NODE_STATE_HANDSHAKE_2;
+		uint16_t											actualPortReceive						= pClientFound->AddressRemote.Port;
+		pClientFound->AddressRemote.Port				= pClientFound->PortReceive;
+		pClientFound->PortReceive						= actualPortReceive;
+		pClientFound->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
 		}
 		break;
 	}
@@ -139,11 +156,11 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 	::gpk::SEndpointCommand								send_command							= {};
 	switch(in_command.Command) {
 	default	: break;
-	case ::gpk::ENDPOINT_COMMAND_TIME:
+	case ::gpk::ENDPOINT_COMMAND_CONNECT	: handleConnect(server, in_command, addressLocal, sa_client); break;
+	case ::gpk::ENDPOINT_COMMAND_TIME		:
 		{	// Check for time request
 		info_printf("Processing TIME request.");
-		::std::chrono::system_clock::time_point				nowclock								= std::chrono::system_clock::now();
-		const int64_t										current_time							= std::chrono::system_clock::to_time_t(nowclock);
+		const int64_t										current_time							= ::gpk::timeCurrent();
 		::gpk::view_stream<char>							commandToSend							= {send_buffer};
 		send_command									= {::gpk::ENDPOINT_COMMAND_TIME, 8, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE};
 		commandToSend.write_pod(send_command);
@@ -159,9 +176,6 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 		commandToSend.write_pod(send_command);
 		ree_if(sendto(sd, commandToSend.begin(), commandToSend.CursorPosition, 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)commandToSend.CursorPosition, "Error sending datagram.");
 		}
-		break;
-	case ::gpk::ENDPOINT_COMMAND_CONNECT:
-		handleConnect(server, in_command, addressLocal, sa_client);
 		break;
 	case ::gpk::ENDPOINT_COMMAND_DISCONNECT:
 		{	// Check for ping request */
@@ -181,13 +195,81 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 	return 0;
 }
 
+static	::gpk::error_t							handleDisconnect					(::dop::STCPIPNode& client, ::gpk::SEndpointCommand in_command, sockaddr_in sa_client)		{
+	::gpk::SIPv4										addrRemote							;
+	::gpk::tcpipAddressFromSockaddr(sa_client, addrRemote);
+	if(client.AddressRemote == addrRemote && in_command.Payload == 0 && in_command.Type == ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST) {
+		safe_closesocket(client.SocketReceive);
+		safe_closesocket(client.SocketSend);
+		client.QueueReceive								= 
+		client.QueueSend								= 
+		client.QueueSent								= {};
+		client.State									= ::dop::TCPIP_NODE_STATE_DISCONNECTED;
+	}
+	return 0;
+}
+
+::gpk::error_t									handleReceive						(::gme::SServer& server, ::dop::STCPIPNode& client)		{
+	::gpk::SEndpointCommand								command								= {};
+	int													client_length						= (int)sizeof(sockaddr_in);	// Length of client struct */
+	sockaddr_in											sa_client							= {};			// Information about the client */
+	int32_t												bytes_received						= recvfrom(client.SocketReceive, (char*)&command, sizeof(::gpk::SEndpointCommand), MSG_PEEK, (sockaddr*)&sa_client, &client_length);		// Receive bytes from client */
+	::gpk::SIPv4										addrLocal							;
+	::gpk::tcpipAddressFromSockaddr(sa_client, addrLocal);
+	ree_if(errored(bytes_received) && WSAGetLastError() != WSAEMSGSIZE, "Failed to receive message from client.");
+	char												rcv_buffer	[32]					;
+	switch(command.Command) {
+	case ::gpk::ENDPOINT_COMMAND_DISCONNECT	: handleDisconnect	(client, command, sa_client); break;
+	case ::gpk::ENDPOINT_COMMAND_CONNECT	: handleConnect		(server, command, client.AddressLocal, sa_client); break;
+	case ::gpk::ENDPOINT_COMMAND_PAYLOAD: 
+	{
+		info_printf("Received PAYLOAD {%u, %u, %u} from %u.%u.%u.%u:%u."
+			, (uint32_t)command.Command
+			, (uint32_t)command.Payload
+			, (uint32_t)command.Type
+			, (uint32_t)addrLocal.IP[0]
+			, (uint32_t)addrLocal.IP[1]
+			, (uint32_t)addrLocal.IP[2]
+			, (uint32_t)addrLocal.IP[3]
+			, (uint32_t)addrLocal.Port
+			);
+		::gpk::view_stream<char>							inputCommand						= {rcv_buffer};
+		const uint32_t										sizeToRead							= sizeof(::gpk::SEndpointCommand) + command.Payload;
+		if(SOCKET_ERROR == ::recvfrom(client.SocketReceive, inputCommand.begin(), (int)sizeToRead, MSG_PEEK, (sockaddr*)&sa_client, &client_length)) {
+#if defined(GPK_WINDOWS)
+			warning_printf("recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());
+			::WSASetLastError(0);
+#endif
+		}
+		::dop::STCPIPEndpointMessage						msg							= {};
+		uint32_t											payloadSize	[4]				= {};
+		inputCommand.read_pod(msg.Command);
+		inputCommand.read_pod((ubyte_t*)payloadSize, command.Payload);
+		gpk_necall(msg.Payload.resize(payloadSize[0]), "Out of memory?");
+		inputCommand.read_pod(msg.Payload.begin(), msg.Payload.size());
+		gpk_necall(client.QueueReceive.push_back(msg), "Out of memory?");
+	}
+		break;
+	default:
+		info_printf("Received command {%u, %u, %u} from %u.%u.%u.%u:%u."
+			, (uint32_t)command.Command
+			, (uint32_t)command.Payload
+			, (uint32_t)command.Type
+			, (uint32_t)addrLocal.IP[0]
+			, (uint32_t)addrLocal.IP[1]
+			, (uint32_t)addrLocal.IP[2]
+			, (uint32_t)addrLocal.IP[3]
+			, (uint32_t)addrLocal.Port
+			);
+		break;
+	}
+	return 0;
+}
+
 ::gpk::error_t									runClientUpdate							(::gme::SServer& server)		{
 	while(server.Listening)	{
 		fd_set												sread;
-		//fd_set												sexcp;
 		::gpk::array_pod<SOCKET>							reads	;
-		//::gpk::array_pod<SOCKET>							writs	;
-		//::gpk::array_pod<SOCKET>							excps	;
 		::gpk::array_pod<int32_t>							clients	;
 		{
 			::gme::mutex_guard									lock								(server.LockClients);
@@ -200,39 +282,27 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 		}
 		sread.fd_count									= clients.size();
 		if(sread.fd_count) {
-			gpk_necall(select(0, &sread, 0, 0, 0), "Fuck!");
+			timeval												timeOut									= {};
+			timeOut.tv_sec									= 1;
+			gpk_necall(select(0, &sread, 0, 0, &timeOut), "Fuck!");
 			{
-				::gme::mutex_guard									lock								(server.LockClients);
 				for(uint32_t iReady = 0; iReady < sread.fd_count; ++iReady) {
 					SOCKET												readys								= sread.fd_array[iReady];
-					uint32_t											indexClient							= 0;
-					for(; indexClient < clients.size(); ++indexClient) {
-						::gpk::ptr_obj<::dop::STCPIPNode>					& client							= server.Clients[clients[indexClient]];
-						if(0 == client)
-							continue;
-						if(client->SocketReceive == readys) {
-							int													client_length						= (int)sizeof(sockaddr_in);	// Length of client struct */
+					for(uint32_t indexClient = 0; indexClient < clients.size(); ++indexClient) {
+						::dop::STCPIPNode									* pClient							= 0;
+						{
+							::gme::mutex_guard									lock								(server.LockClients);
+							::gpk::ptr_obj<::dop::STCPIPNode>					& rclient							= server.Clients[clients[indexClient]];
+							if(0 == rclient)
+								continue;
+							pClient											= rclient;
+						}
+						if(pClient->SocketReceive == readys) {
 							::gpk::SEndpointCommand								command								= {};
-							sockaddr_in											sa_client							= {};			// Information about the client */
-							int32_t												bytes_received						= recvfrom(client->SocketReceive, (char*)&command, sizeof(::gpk::SEndpointCommand), MSG_PEEK, (sockaddr*)&sa_client, &client_length);		// Receive bytes from client */
-							::gpk::SIPv4										addrLocal							;
-							::gpk::tcpipAddressFromSockaddr(sa_client, addrLocal);
-							ree_if(errored(bytes_received), "Failed to receive from client %u.", indexClient);
-							switch(command.Command) {
-							case ::gpk::ENDPOINT_COMMAND_CONNECT: 
-								handleConnect(server, command, client->AddressLocal, sa_client);
-								break;
-							default:
-								info_printf("Received command from %u.%u.%u.%u:%u."	, (uint32_t)addrLocal.IP[0]
-																					, (uint32_t)addrLocal.IP[1]
-																					, (uint32_t)addrLocal.IP[2]
-																					, (uint32_t)addrLocal.IP[3]
-																					, (uint32_t)addrLocal.Port
-																					);
-
-								break;
-							}
-							recvfrom(client->SocketReceive, (char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_client, &client_length);
+							error_if(errored(handleReceive(server, *pClient)), "Failed to handle request for client %u", indexClient);
+							int													client_length						= (int)sizeof(sockaddr_in);	// Length of client struct */
+							sockaddr_in											sa_client							= {};						// Information about the client */
+							recvfrom(pClient->SocketReceive, (char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_client, &client_length);
 						}
 					}
 				}
@@ -242,11 +312,8 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 	return 0;
 }
 
-static void								runClientUpdate							(void* server)		{
-	::runClientUpdate(*(::gme::SServer*)server);
-}
-
-::gpk::error_t									run										(::gme::SServer& server)		{
+static	void									runClientUpdate							(void* server)					{ ::runClientUpdate(*(::gme::SServer*)server); }
+		::gpk::error_t							run										(::gme::SServer& server)		{
 	::gpk::SIPv4										& addrLocal								= server.Address;
 	int													bytes_received							= 0;					/* Bytes received from client */
 	SOCKET												& sd									= server.Socket = socket(AF_INET, SOCK_DGRAM, 0);		/* Socket descriptor of server */
@@ -297,19 +364,19 @@ static void								runClientUpdate							(void* server)		{
 	return 0;
 }
 
-::gpk::error_t														gme::serverUpdate				(SServer& server)			{
-	::gme::mutex_guard														lock							(server.LockClients);
+::gpk::error_t									gme::serverUpdate				(SServer& server)			{
+	::gme::mutex_guard									lock							(server.LockClients);
 	for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
-		::dop::STCPIPNode														& client						= *server.Clients[iClient];
+		::dop::STCPIPNode									& client						= *server.Clients[iClient];
 		::dop::tcpipNodeUpdate(client);
 		for(uint32_t iSend = 0; iSend < client.QueueSend.size(); ++iSend) {
-			::dop::STCPIPEndpointMessage							& message				= client.QueueSend[iSend];
-			::gpk::array_pod<byte_t>								sendBuffer;
-			sendBuffer.append((byte_t*)&message.Command, sizeof(::gpk::SEndpointCommand));
+			::dop::STCPIPEndpointMessage						& message						= client.QueueSend[iSend];
+			::gpk::array_pod<byte_t>							sendBuffer;
+			ce_if(errored(sendBuffer.append((byte_t*)&message.Command, sizeof(::gpk::SEndpointCommand))), "Out of memory?");
 			if(message.Payload.size())
-				sendBuffer.append(message.Payload.begin(), message.Payload.size());
+				ce_if(errored(sendBuffer.append(message.Payload.begin(), message.Payload.size())), "Out of memory?");
 
-			sockaddr_in											sa_client								= {};			// Information about the client */
+			sockaddr_in											sa_client						= {};			// Information about the client */
 			::gpk::tcpipAddressToSockaddr(client.AddressRemote, sa_client);
 			info_printf("Sending command {%u, %u, %u} to %u.%u.%u.%u:%u."	, (uint32_t)message.Command.Command
 																			, (uint32_t)message.Command.Payload
@@ -320,10 +387,11 @@ static void								runClientUpdate							(void* server)		{
 																			, (uint32_t)client.AddressRemote.IP[3]
 																			, (uint32_t)client.AddressRemote.Port
 																			);
-			ree_if(sendto((message.Command.Command == ::gpk::ENDPOINT_COMMAND_CONNECT && message.Command.Payload == 1) ? client.SocketReceive : client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
-			client.QueueSent.push_back(message);
+			ce_if(sendto((message.Command.Command == ::gpk::ENDPOINT_COMMAND_CONNECT && message.Command.Payload == 1) ? client.SocketReceive : client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
+			ce_if(errored(client.QueueSend.remove(iSend)), "Logic got broken!");
+			ce_if(errored(client.QueueSent.push_back(message)), "Out of memory?");
 		}
-		client.QueueSend.clear();
+		//client.QueueSend.clear();
 	}
 	return 0;
 }
