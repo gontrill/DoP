@@ -40,9 +40,9 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::SIPv4															& addressClient				= app.Client.AddressLocal		= {};
 	//::gpk::SIPv4															& addressServer				= app.Client.AddressRemote		= {}; //{{192, 168, 1, 79}, 6667,};
 	::gpk::SIPv4															& addressConn				= app.Client.AddressConnection	= {{192, 168, 1, 79}, 6667,};
-	::gpk::tcpipAddress(addressClient.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient);
-	//::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressServer);
-	::gpk::tcpipAddress(addressConn.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressConn);
+	::gpk::tcpipAddress(addressClient	.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient	);
+	::gpk::tcpipAddress(addressConn		.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressConn	);
+	//::gpk::tcpipAddress("www.google.com", addressConn.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressConn);
 	::run(app.Client);
 	return 0; 
 }

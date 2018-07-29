@@ -20,7 +20,7 @@ int												serverListen							(::gme::SServer& server)						{
 	return 0;
 }
 
-static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::SEndpointCommand in_command, const ::gpk::SIPv4& addressLocal, sockaddr_in sa_client)		{
+static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::SEndpointCommand in_command, sockaddr_in sa_client)		{
 	::gpk::SIPv4										remoteJustReceived						;;
 	::gpk::tcpipAddressFromSockaddr(sa_client, remoteJustReceived);
 	info_printf("Processing CONNECT request. Stage: %u. From address: %u.%u.%u.%u:%u.", (uint32_t)in_command.Payload
@@ -41,7 +41,7 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 		client->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
 		client->AddressLocal.Port						= 0;
 
-		client->SocketSend								= socket(AF_INET, SOCK_DGRAM, 0);
+		client->SocketSend								= socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		ree_if(client->SocketSend == INVALID_SOCKET, "Could not create socket.");
 		::gpk::auto_socket_close							sdsafe						= {};
 		sdsafe.Handle									= client->SocketSend;
@@ -93,7 +93,7 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 		pClientFound->Mode								= ::dop::TCPIP_NODE_MODE_HOST;
 		pClientFound->State								= ::dop::TCPIP_NODE_STATE_HANDSHAKE_1;
 		pClientFound->AddressLocal.Port					= 0;
-		pClientFound->SocketReceive						= socket(AF_INET, SOCK_DGRAM, 0);
+		pClientFound->SocketReceive						= socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		ree_if(pClientFound->SocketReceive == INVALID_SOCKET, "Could not create socket.");
 		::gpk::auto_socket_close							sdsafe						= {};
 		sdsafe.Handle									= pClientFound->SocketReceive;
@@ -145,7 +145,6 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 		}
 		break;
 	}
-	sa_client;addressLocal;
 	return 0;
 }
 
@@ -156,7 +155,7 @@ static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::
 	::gpk::SEndpointCommand								send_command							= {};
 	switch(in_command.Command) {
 	default	: break;
-	case ::gpk::ENDPOINT_COMMAND_CONNECT	: handleConnect(server, in_command, addressLocal, sa_client); break;
+	case ::gpk::ENDPOINT_COMMAND_CONNECT	: handleConnect(server, in_command, sa_client); break;
 	case ::gpk::ENDPOINT_COMMAND_TIME		:
 		{	// Check for time request
 		info_printf("Processing TIME request.");
@@ -220,7 +219,7 @@ static	::gpk::error_t							handleDisconnect					(::dop::STCPIPNode& client, ::g
 	char												rcv_buffer	[32]					;
 	switch(command.Command) {
 	case ::gpk::ENDPOINT_COMMAND_DISCONNECT	: handleDisconnect	(client, command, sa_client); break;
-	case ::gpk::ENDPOINT_COMMAND_CONNECT	: handleConnect		(server, command, client.AddressLocal, sa_client); break;
+	case ::gpk::ENDPOINT_COMMAND_CONNECT	: handleConnect		(server, command, sa_client); break;
 	case ::gpk::ENDPOINT_COMMAND_PAYLOAD: 
 	{
 		info_printf("Received PAYLOAD {%u, %u, %u} from %u.%u.%u.%u:%u."
@@ -316,7 +315,7 @@ static	void									runClientUpdate							(void* server)					{ ::runClientUpdate
 		::gpk::error_t							run										(::gme::SServer& server)		{
 	::gpk::SIPv4										& addrLocal								= server.Address;
 	int													bytes_received							= 0;					/* Bytes received from client */
-	SOCKET												& sd									= server.Socket = socket(AF_INET, SOCK_DGRAM, 0);		/* Socket descriptor of server */
+	SOCKET												& sd									= server.Socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);		/* Socket descriptor of server */
 	ree_if(sd == INVALID_SOCKET, "Could not create socket.");
 	::gpk::auto_socket_close							sdsafe									= {};
 	sdsafe.Handle									= sd;

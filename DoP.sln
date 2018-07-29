@@ -35,6 +35,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlibvc", "..\zlib\contrib\v
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DoPl", "DoPl\DoPl.vcxproj", "{C6A5F1FE-B7B2-469C-A256-EC01C0DBF2F1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DoPw", "DoPw\DoPw.vcxproj", "{99458FA6-ADBE-4E76-9038-DBDB7668C726}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -129,6 +131,18 @@ Global
 		{C6A5F1FE-B7B2-469C-A256-EC01C0DBF2F1}.ReleaseWithoutAsm|x64.Build.0 = Release|x64
 		{C6A5F1FE-B7B2-469C-A256-EC01C0DBF2F1}.ReleaseWithoutAsm|x86.ActiveCfg = Release|Win32
 		{C6A5F1FE-B7B2-469C-A256-EC01C0DBF2F1}.ReleaseWithoutAsm|x86.Build.0 = Release|Win32
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.Debug|x64.ActiveCfg = Debug|x64
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.Debug|x64.Build.0 = Debug|x64
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.Debug|x86.ActiveCfg = Debug|Win32
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.Debug|x86.Build.0 = Debug|Win32
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.Release|x64.ActiveCfg = Release|x64
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.Release|x64.Build.0 = Release|x64
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.Release|x86.ActiveCfg = Release|Win32
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.Release|x86.Build.0 = Release|Win32
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.ReleaseWithoutAsm|x64.ActiveCfg = Release|x64
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.ReleaseWithoutAsm|x64.Build.0 = Release|x64
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.ReleaseWithoutAsm|x86.ActiveCfg = Release|Win32
+		{99458FA6-ADBE-4E76-9038-DBDB7668C726}.ReleaseWithoutAsm|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
