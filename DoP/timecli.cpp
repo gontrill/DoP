@@ -131,78 +131,42 @@
 	return 0;
 }
 
-static	void							tcpipNodeConnect			(void * client)													{
+static	void									tcpipNodeConnect				(void * client)													{
 	error_if(errored(tcpipNodeConnect(*(::dop::STCPIPNode*)client)), "Cannot connect to server.");
 	return;
 }
 
-		::gpk::error_t					run							(::dop::STCPIPNode& client)										{
+		::gpk::error_t							run								(::dop::STCPIPNode& client)										{
 	_beginthread(::tcpipNodeConnect, 0, &client);
 	return 0;
 }
 
-::gpk::error_t														gme::clientUpdate				(::dop::STCPIPNode & client)			{
-	//::gme::mutex_guard														lock							(server.LockClients);
-	//for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
-	//	::dop::STCPIPNode														& client						= *server.Clients[iClient];
-		::dop::tcpipNodeUpdate(client);
-		for(uint32_t iSend = 0; iSend < client.QueueSend.size(); ++iSend) {
-			::dop::STCPIPEndpointMessage							& message				= client.QueueSend[iSend];
-			::gpk::array_pod<byte_t>								sendBuffer;
-			sendBuffer.append((byte_t*)&message.Command, sizeof(::gpk::SEndpointCommand));
-			if(message.Payload.size())
-				sendBuffer.append(message.Payload.begin(), message.Payload.size());
+		::gpk::error_t							gme::clientUpdate				(::dop::STCPIPNode & client)			{
+	//::gme::mutex_guard									lock							(server.LockClients);
+	::dop::tcpipNodeUpdate(client);
+	::gpk::array_pod<byte_t>							sendBuffer;
+	for(uint32_t iSend = 0; iSend < client.QueueSend.size(); ++iSend) {
+		::dop::STCPIPEndpointMessage						& message						= client.QueueSend[iSend];
+		sendBuffer.clear();
+		sendBuffer.append((byte_t*)&message.Command, sizeof(::gpk::SEndpointCommand));
+		sendBuffer.append((byte_t*)&message.Payload.size(), sizeof(uint32_t));
+		if(message.Payload.size())
+			sendBuffer.append(message.Payload.begin(), message.Payload.size());
 
-			sockaddr_in											sa_client								= {};			// Information about the client */
-			::gpk::tcpipAddressToSockaddr(client.AddressRemote, sa_client);
-			info_printf("Sending command {%u, %u, %u} to %u.%u.%u.%u:%u."	, (uint32_t)message.Command.Command
-																			, (uint32_t)message.Command.Payload
-																			, (uint32_t)message.Command.Type
-																			, (uint32_t)client.AddressRemote.IP[0]
-																			, (uint32_t)client.AddressRemote.IP[1]
-																			, (uint32_t)client.AddressRemote.IP[2]
-																			, (uint32_t)client.AddressRemote.IP[3]
-																			, (uint32_t)client.AddressRemote.Port
-																			);
-			ree_if(sendto((message.Command.Command == ::gpk::ENDPOINT_COMMAND_CONNECT && message.Command.Payload == 1) ? client.SocketReceive : client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
-			client.QueueSent.push_back(message);
-		}
-		client.QueueSend.clear();
-	//}
+		sockaddr_in											sa_client						= {};			// Information about the client */
+		::gpk::tcpipAddressToSockaddr(client.AddressRemote, sa_client);
+		info_printf("Sending command {%u, %u, %u} to %u.%u.%u.%u:%u."	, (uint32_t)message.Command.Command
+																		, (uint32_t)message.Command.Payload
+																		, (uint32_t)message.Command.Type
+																		, (uint32_t)client.AddressRemote.IP[0]
+																		, (uint32_t)client.AddressRemote.IP[1]
+																		, (uint32_t)client.AddressRemote.IP[2]
+																		, (uint32_t)client.AddressRemote.IP[3]
+																		, (uint32_t)client.AddressRemote.Port
+																		);
+		ree_if(sendto((message.Command.Command == ::gpk::ENDPOINT_COMMAND_CONNECT && message.Command.Payload == 1) ? client.SocketReceive : client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
+		client.QueueSent.push_back(message);
+	}
+	client.QueueSend.clear();
 	return 0;
 }
-
-
-//		case ::gpk::ENDPOINT_COMMAND_TIME:
-//			{
-//			::gpk::view_stream<char>					inputCommand				= {recv_buffer};
-//			info_printf("Received TIME response.");
-//			if(SOCKET_ERROR == ::recvfrom(sd, inputCommand.begin(), (int)(sizeof(::gpk::SEndpointCommand) + sizeof(uint64_t)), MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
-//#if defined(GPK_WINDOWS)
-//				warning_printf("recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());
-//				::WSASetLastError(0);
-//#endif
-//			}
-//			::std::chrono::system_clock::time_point		now							= ::std::chrono::system_clock::now();
-//			int64_t										current_time				= ::std::chrono::system_clock::to_time_t(now);					/* Time received */
-//			char										curtime [16]				= {};	/* Display time */
-//			inputCommand.read_pod(command);
-//			inputCommand.read_pod(current_time);
-//			client.RemoteTime						= current_time;
-//			ctime_s(curtime, 256, &current_time);
-//			info_printf("Current time: %s.", curtime);
-//			}
-//			break;
-//		case ::gpk::ENDPOINT_COMMAND_PING:
-//			{
-//			::gpk::view_stream<char>					inputCommand				= {recv_buffer};
-//			info_printf("Received PING response.");
-//			if(SOCKET_ERROR == ::recvfrom(sd, inputCommand.begin(), (int)(sizeof(::gpk::SEndpointCommand)), MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
-//#if defined(GPK_WINDOWS)
-//				warning_printf("recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());
-//				::WSASetLastError(0);
-//#endif
-//			}
-//			inputCommand.read_pod(command);
-//			}
-//			break;
