@@ -7,19 +7,6 @@
 
 namespace dop
 {
-	struct SConnection {
-		::gpk::SIPv4							AddressLocal				= {};
-		::gpk::SIPv4							AddressRemote				= {};
-		SOCKET									Socket						= INVALID_SOCKET;	// To local address.
-	};
-
-	struct SConnectionDuplex {
-		::gpk::SIPv4							AddressLocal				= {};
-		::gpk::SIPv4							AddressRemote				= {};
-		SOCKET									SocketReceive				= INVALID_SOCKET;	// To local address.
-		SOCKET									SocketSend					= INVALID_SOCKET;	// To local address.
-	};
-
 	::gpk::error_t							commandByteSend				(SOCKET socket, const ::gpk::SIPv4 & addressRemote, const ::gpk::SEndpointCommand & commandToSend);
 	::gpk::error_t							commandBytePeek				(SOCKET socket,		  ::gpk::SIPv4 & addressRemote,		  ::gpk::SEndpointCommand & commandPeeked);
 } // namespace

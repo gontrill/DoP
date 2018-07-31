@@ -29,5 +29,11 @@
     <ClCompile Include="dop_tcpip_node_udp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="dop_tcpip_udp_client.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dop_tcpip_udp_server.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

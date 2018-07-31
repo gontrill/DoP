@@ -1,19 +1,43 @@
+#include "dop_tcpip_node_udp.h"
 // http://www.gomorgan89.com 
-#include "application.h"
 #include "gpk_windows.h"
-#include "gpk_safe.h"
 #include "gpk_view_stream.h"
-#include "gpk_endpoint_command.h"
-
-#include <Ctime>
-#include <chrono>
-#include <socketapi.h>
-
 #if defined(GPK_WINDOWS)
 #	include <process.h>
 #endif
 
-		::gpk::error_t					tcpipNodeConnect			(::dop::STCPIPNode& client)										{
+
+		::gpk::error_t							dop::clientUpdate				(::dop::STCPIPNode & client)			{
+	//::gme::mutex_guard									lock							(server.LockClients);
+	::dop::tcpipNodeUpdate(client);
+	::gpk::array_pod<byte_t>							sendBuffer;
+	for(uint32_t iSend = 0; iSend < client.QueueSend.size(); ++iSend) {
+		::dop::STCPIPEndpointMessage						& message						= client.QueueSend[iSend];
+		sendBuffer.clear();
+		sendBuffer.append((byte_t*)&message.Command, sizeof(::gpk::SEndpointCommand));
+		sendBuffer.append((byte_t*)&message.Payload.size(), sizeof(uint32_t));
+		if(message.Payload.size())
+			sendBuffer.append(message.Payload.begin(), message.Payload.size());
+
+		sockaddr_in											sa_client						= {};			// Information about the client */
+		::gpk::tcpipAddressToSockaddr(client.AddressRemote, sa_client);
+		info_printf("Sending command {%u, %u, %u} to %u.%u.%u.%u:%u."	, (uint32_t)message.Command.Command
+																		, (uint32_t)message.Command.Payload
+																		, (uint32_t)message.Command.Type
+																		, (uint32_t)client.AddressRemote.IP[0]
+																		, (uint32_t)client.AddressRemote.IP[1]
+																		, (uint32_t)client.AddressRemote.IP[2]
+																		, (uint32_t)client.AddressRemote.IP[3]
+																		, (uint32_t)client.AddressRemote.Port
+																		);
+		ree_if(sendto((message.Command.Command == ::gpk::ENDPOINT_COMMAND_CONNECT && message.Command.Payload == 1) ? client.SocketReceive : client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
+		client.QueueSent.push_back(message);
+	}
+	client.QueueSend.clear();
+	return 0;
+}
+
+static	::gpk::error_t					tcpipNodeConnect			(::dop::STCPIPNode& client)										{
 	::gpk::auto_socket_close					sdsafeS						= {};
 	::gpk::auto_socket_close					sdsafeR						= {};
 
@@ -124,49 +148,15 @@
 		::recvfrom(sdRead, (char*)&command, (int)sizeof(::gpk::SEndpointCommand), 0, (sockaddr*)&sa_remote, &server_length);
 		Sleep(10);
 	}
-	sdsafeS.Handle							= INVALID_SOCKET;
-	sdsafeR.Handle							= INVALID_SOCKET;
-	safe_closesocket(client.SocketReceive);
-	safe_closesocket(client.SocketSend);
 	return 0;
 }
 
 static	void									tcpipNodeConnect				(void * client)													{
-	error_if(errored(tcpipNodeConnect(*(::dop::STCPIPNode*)client)), "Cannot connect to server.");
+	error_if(errored(::tcpipNodeConnect(*(::dop::STCPIPNode*)client)), "Cannot connect to server.");
 	return;
 }
 
-		::gpk::error_t							run								(::dop::STCPIPNode& client)										{
+		::gpk::error_t							dop::tcpipNodeConnect			(::dop::STCPIPNode& client)										{
 	_beginthread(::tcpipNodeConnect, 0, &client);
-	return 0;
-}
-
-		::gpk::error_t							gme::clientUpdate				(::dop::STCPIPNode & client)			{
-	//::gme::mutex_guard									lock							(server.LockClients);
-	::dop::tcpipNodeUpdate(client);
-	::gpk::array_pod<byte_t>							sendBuffer;
-	for(uint32_t iSend = 0; iSend < client.QueueSend.size(); ++iSend) {
-		::dop::STCPIPEndpointMessage						& message						= client.QueueSend[iSend];
-		sendBuffer.clear();
-		sendBuffer.append((byte_t*)&message.Command, sizeof(::gpk::SEndpointCommand));
-		sendBuffer.append((byte_t*)&message.Payload.size(), sizeof(uint32_t));
-		if(message.Payload.size())
-			sendBuffer.append(message.Payload.begin(), message.Payload.size());
-
-		sockaddr_in											sa_client						= {};			// Information about the client */
-		::gpk::tcpipAddressToSockaddr(client.AddressRemote, sa_client);
-		info_printf("Sending command {%u, %u, %u} to %u.%u.%u.%u:%u."	, (uint32_t)message.Command.Command
-																		, (uint32_t)message.Command.Payload
-																		, (uint32_t)message.Command.Type
-																		, (uint32_t)client.AddressRemote.IP[0]
-																		, (uint32_t)client.AddressRemote.IP[1]
-																		, (uint32_t)client.AddressRemote.IP[2]
-																		, (uint32_t)client.AddressRemote.IP[3]
-																		, (uint32_t)client.AddressRemote.Port
-																		);
-		ree_if(sendto((message.Command.Command == ::gpk::ENDPOINT_COMMAND_CONNECT && message.Command.Payload == 1) ? client.SocketReceive : client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
-		client.QueueSent.push_back(message);
-	}
-	client.QueueSend.clear();
 	return 0;
 }

@@ -9,32 +9,9 @@
 
 GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 
-			int														serverShutdown				(::gme::SServer& server)						{
-	server.Listening													= false;
-	char																	commandbytes	[256]		= {};
-	::gpk::view_stream<char>												commandToSend				= {commandbytes};
-	::gpk::SEndpointCommand													command						= {::gpk::ENDPOINT_COMMAND_DISCONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
-	commandToSend.write_pod(command);
-
-	// Set family and port */
-	::gpk::SIPv4															& local						= server.Address;
-	sockaddr_in																sa_remote					= {};			/* Information about the server */
-	sa_remote.sin_family												= AF_INET;
-	sa_remote.sin_port													= htons(local.Port);
-	sa_remote.sin_addr.S_un.S_un_b.s_b1									= (unsigned char)local.IP[0];
-	sa_remote.sin_addr.S_un.S_un_b.s_b2									= (unsigned char)local.IP[1];
-	sa_remote.sin_addr.S_un.S_un_b.s_b3									= (unsigned char)local.IP[2];
-	sa_remote.sin_addr.S_un.S_un_b.s_b4									= (unsigned char)local.IP[3];
-	while(server.Running) {
-		warn_if(sendto(server.Socket, (const char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr *)&sa_remote, (int)sizeof(sockaddr_in)) != (int32_t)sizeof(::gpk::SEndpointCommand), "Error sending disconnect command.");
-		::gpk::sleep(10);
-	}
-	return 0;
-}
-
 			int														serverListen				(::gme::SServer& server);
 			::gpk::error_t											cleanup						(::gme::SApplication & app)						{ 
-	::serverShutdown(app.Server);
+	::dop::serverShutdown(app.Server);
 	while(app.Server.Running)
 		::gpk::sleep(10);
 	::gpk::tcpipShutdown();
@@ -66,7 +43,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::SIPv4															& addressServer				= app.Server.Address	= {{192, 168, 1, 79}, 6667,};
 	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressServer);
 	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient);
-	::serverListen(app.Server);
+	::dop::serverListen(app.Server);
 	return 0; 
 }
 
@@ -121,7 +98,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 				return 1;
 		}
 	}
-	::gme::serverUpdate(app.Server);
+	::dop::serverUpdate(app.Server);
 	//timer.Frame();
 	//warning_printf("Update time: %f.", (float)timer.LastTimeSeconds);
 	return 0; 

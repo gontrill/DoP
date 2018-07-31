@@ -43,7 +43,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	::gpk::tcpipAddress(addressClient	.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient	);
 	::gpk::tcpipAddress(addressConn		.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressConn	);
 	//::gpk::tcpipAddress("www.google.com", addressConn.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressConn);
-	::run(app.Client);
+	::dop::tcpipNodeConnect(app.Client);
 	return 0; 
 }
 
@@ -103,7 +103,7 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	//	app.Client.QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_PING}, 0, 0});
 
 	::dop::tcpipNodeUpdate(app.Client);
-	::gme::clientUpdate(app.Client);
+	::dop::clientUpdate(app.Client);
 	app.Client.QueueSent.clear();
 
 	//timer.Frame();

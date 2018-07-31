@@ -3,7 +3,15 @@
 
 #include <ctime>
 
+#if defined(GPK_WINDOWS)
+#	include <process.h>
+#endif
+
 static constexpr	const uint32_t		BUFFER_SIZE											= 4096;
+
+void									runClientThread										(void* httpServer)							{
+	httpServer;
+}
 
 int										run													(::gme::SHTTPServer& httpServer)							{
 	::gpk::SIPv4								& addrServer										= httpServer.AddressServer;
@@ -13,6 +21,12 @@ int										run													(::gme::SHTTPServer& httpServer)							{
 	ree_if(httpServer.Listener == INVALID_SOCKET, "Could not create socket.");
 	
 	::gpk::tcpipAddress(80, 0, ::gpk::TRANSPORT_PROTOCOL_TCP, addrServer);
+
+#if defined(GPK_WINDOWS)
+	_beginthread(runClientThread, 0, &httpServer);
+#else
+#	error "Not imlpemented."
+#endif
 
 	sockaddr_in									sa_server											= {AF_INET, htons(addrServer.Port)};		// Information about the server 
 	::gpk::tcpipAddressToSockaddr(addrServer, sa_server);

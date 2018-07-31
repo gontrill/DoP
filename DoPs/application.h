@@ -29,7 +29,7 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 					int32_t																IdExit						= -1;
 					::std::mutex														LockGUI						;
 					::std::mutex														LockRender					;
-					::gme::SServer														Server						;
+					::dop::SServer														Server						;
 
 																						SApplication				(::gpk::SRuntimeValues& runtimeValues)	: Framework(runtimeValues)		{}
 	};

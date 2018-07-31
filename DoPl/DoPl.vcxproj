@@ -165,6 +165,8 @@
   <ItemGroup>
     <ClCompile Include="dop_connection.cpp" />
     <ClCompile Include="dop_tcpip_node_udp.cpp" />
+    <ClCompile Include="dop_tcpip_udp_client.cpp" />
+    <ClCompile Include="dop_tcpip_udp_server.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

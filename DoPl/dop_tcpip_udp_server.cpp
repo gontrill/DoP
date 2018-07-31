@@ -1,7 +1,7 @@
 // http://www.gomorgan89.com 
-#include "application.h"
+#include "dop_tcpip_node_udp.h"
 
-#include "gpk_stdsocket.h"
+//#include "gpk_stdsocket.h"
 #include "gpk_endpoint_command.h"
 #include "gpk_view_stream.h"
 
@@ -12,15 +12,17 @@
 #	include <process.h>
 #endif
 
-::gpk::error_t									run										(::gme::SServer& server);
-static void										run_thread								(void * server)									{ error_if(errored(run(*(::gme::SServer*)server)), "Listening thread exited with error."); }
-int												serverListen							(::gme::SServer& server)						{
+typedef ::std::lock_guard<::std::mutex>								mutex_guard;
+
+::gpk::error_t									run										(::dop::SServer& server);
+static void										run_thread								(void * server)									{ error_if(errored(run(*(::dop::SServer*)server)), "Listening thread exited with error."); }
+int												dop::serverListen						(::dop::SServer& server)						{
 	server.Running									= true;
 	_beginthread(::run_thread, 0, &server);
 	return 0;
 }
 
-static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::SEndpointCommand in_command, sockaddr_in sa_client)		{
+static ::gpk::error_t							handleConnect							(::dop::SServer& server, ::gpk::SEndpointCommand in_command, sockaddr_in sa_client)		{
 	::gpk::SIPv4										remoteJustReceived						;;
 	::gpk::tcpipAddressFromSockaddr(sa_client, remoteJustReceived);
 	info_printf("Processing CONNECT request. Stage: %u. From address: %u.%u.%u.%u:%u.", (uint32_t)in_command.Payload
@@ -55,7 +57,7 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 		client->AddressLocal.Port						= ntohs(sin.sin_port);
 		info_printf("Socket Send port number: %i.", (int32_t)client->AddressLocal.Port);
 		{
-			::gme::mutex_guard									lock								(server.LockClients);
+			::mutex_guard										lock								(server.LockClients);
 			gpk_necall(server.Clients.push_back(client), "Out of memory?");
 		}
 		sdsafe.Handle									= 0;
@@ -66,7 +68,7 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 		for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
 			::dop::STCPIPNode									* pClientTest								= 0;
 			{
-				::gme::mutex_guard									lock				(server.LockClients);
+				::mutex_guard										lock				(server.LockClients);
 				pClientTest										= server.Clients[iClient];
 				if(0 == pClientTest)
 					continue;
@@ -116,7 +118,7 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 		for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
 			::dop::STCPIPNode									* pClientTest								= 0;
 			{
-				::gme::mutex_guard									lock				(server.LockClients);
+				::mutex_guard										lock				(server.LockClients);
 				pClientTest										= server.Clients[iClient];
 				if(0 == pClientTest)
 					continue;
@@ -148,7 +150,7 @@ static ::gpk::error_t							handleConnect							(::gme::SServer& server, ::gpk::
 	return 0;
 }
 
-static ::gpk::error_t							handleRequest							(::gme::SServer& server, ::gpk::SEndpointCommand in_command, const ::gpk::SIPv4& addressLocal, sockaddr_in sa_client)		{
+static ::gpk::error_t							handleRequest							(::dop::SServer& server, ::gpk::SEndpointCommand in_command, const ::gpk::SIPv4& addressLocal, sockaddr_in sa_client)		{
 	SOCKET												sd										= server.Socket;
 	//int													client_length							= (int)sizeof(struct sockaddr_in);	// Length of client struct */
 	char												send_buffer	[16]						= {};				/* Name of the server */
@@ -208,7 +210,7 @@ static	::gpk::error_t							handleDisconnect					(::dop::STCPIPNode& client, ::g
 	return 0;
 }
 
-::gpk::error_t									handleReceive						(::gme::SServer& server, ::dop::STCPIPNode& client)		{
+::gpk::error_t									handleReceive						(::dop::SServer& server, ::dop::STCPIPNode& client)		{
 	::gpk::SEndpointCommand								command								= {};
 	int													client_length						= (int)sizeof(sockaddr_in);	// Length of client struct */
 	sockaddr_in											sa_client							= {};			// Information about the client */
@@ -265,13 +267,13 @@ static	::gpk::error_t							handleDisconnect					(::dop::STCPIPNode& client, ::g
 	return 0;
 }
 
-::gpk::error_t									runClientUpdate							(::gme::SServer& server)		{
+::gpk::error_t									runClientUpdate							(::dop::SServer& server)		{
 	while(server.Listening)	{
 		fd_set												sread;
 		::gpk::array_pod<SOCKET>							reads	;
 		::gpk::array_pod<int32_t>							clients	;
 		{
-			::gme::mutex_guard									lock								(server.LockClients);
+			::mutex_guard										lock								(server.LockClients);
 			for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
 				if(INVALID_SOCKET != server.Clients[iClient]->SocketReceive) {
 					sread.fd_array[iClient]						= server.Clients[iClient]->SocketReceive;
@@ -290,7 +292,7 @@ static	::gpk::error_t							handleDisconnect					(::dop::STCPIPNode& client, ::g
 					for(uint32_t indexClient = 0; indexClient < clients.size(); ++indexClient) {
 						::dop::STCPIPNode									* pClient							= 0;
 						{
-							::gme::mutex_guard									lock								(server.LockClients);
+							::mutex_guard										lock								(server.LockClients);
 							::gpk::ptr_obj<::dop::STCPIPNode>					& rclient							= server.Clients[clients[indexClient]];
 							if(0 == rclient)
 								continue;
@@ -311,8 +313,8 @@ static	::gpk::error_t							handleDisconnect					(::dop::STCPIPNode& client, ::g
 	return 0;
 }
 
-static	void									runClientUpdate							(void* server)					{ ::runClientUpdate(*(::gme::SServer*)server); }
-		::gpk::error_t							run										(::gme::SServer& server)		{
+static	void									runClientUpdate							(void* server)					{ ::runClientUpdate(*(::dop::SServer*)server); }
+static	::gpk::error_t							run										(::dop::SServer& server)		{
 	::gpk::SIPv4										& addrLocal								= server.Address;
 	int													bytes_received							= 0;					/* Bytes received from client */
 	SOCKET												& sd									= server.Socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);		/* Socket descriptor of server */
@@ -363,8 +365,8 @@ static	void									runClientUpdate							(void* server)					{ ::runClientUpdate
 	return 0;
 }
 
-::gpk::error_t									gme::serverUpdate				(SServer& server)			{
-	::gme::mutex_guard									lock							(server.LockClients);
+::gpk::error_t									dop::serverUpdate				(::dop::SServer& server)			{
+	::mutex_guard										lock							(server.LockClients);
 	for(uint32_t iClient = 0; iClient < server.Clients.size(); ++iClient) {
 		::dop::STCPIPNode									& client						= *server.Clients[iClient];
 		::dop::tcpipNodeUpdate(client);
@@ -372,6 +374,7 @@ static	void									runClientUpdate							(void* server)					{ ::runClientUpdate
 			::dop::STCPIPEndpointMessage						& message						= client.QueueSend[iSend];
 			::gpk::array_pod<byte_t>							sendBuffer;
 			ce_if(errored(sendBuffer.append((byte_t*)&message.Command, sizeof(::gpk::SEndpointCommand))), "Out of memory?");
+			ce_if(errored(sendBuffer.append((byte_t*)&message.Payload.size(), sizeof(uint32_t))), "Out of memory?");
 			if(message.Payload.size())
 				ce_if(errored(sendBuffer.append(message.Payload.begin(), message.Payload.size())), "Out of memory?");
 
@@ -391,6 +394,30 @@ static	void									runClientUpdate							(void* server)					{ ::runClientUpdate
 			ce_if(errored(client.QueueSent.push_back(message)), "Out of memory?");
 		}
 		//client.QueueSend.clear();
+	}
+	return 0;
+}
+
+
+			int													dop::serverShutdown				(::dop::SServer& server)						{
+	server.Listening													= false;
+	char																	commandbytes	[256]		= {};
+	::gpk::view_stream<char>												commandToSend				= {commandbytes};
+	::gpk::SEndpointCommand													command						= {::gpk::ENDPOINT_COMMAND_DISCONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
+	commandToSend.write_pod(command);
+
+	// Set family and port */
+	::gpk::SIPv4															& local						= server.Address;
+	sockaddr_in																sa_remote					= {};			/* Information about the server */
+	sa_remote.sin_family												= AF_INET;
+	sa_remote.sin_port													= htons(local.Port);
+	sa_remote.sin_addr.S_un.S_un_b.s_b1									= (unsigned char)local.IP[0];
+	sa_remote.sin_addr.S_un.S_un_b.s_b2									= (unsigned char)local.IP[1];
+	sa_remote.sin_addr.S_un.S_un_b.s_b3									= (unsigned char)local.IP[2];
+	sa_remote.sin_addr.S_un.S_un_b.s_b4									= (unsigned char)local.IP[3];
+	while(server.Running) {
+		warn_if(sendto(server.Socket, (const char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr *)&sa_remote, (int)sizeof(sockaddr_in)) != (int32_t)sizeof(::gpk::SEndpointCommand), "Error sending disconnect command.");
+		::gpk::sleep(10);
 	}
 	return 0;
 }
