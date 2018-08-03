@@ -14,6 +14,7 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 	struct SHTTPServerClient {
 					::gpk::SIPv4															Address								= {{0, 0, 0, 0}, 80};
 					SOCKET																	Socket								= INVALID_SOCKET;
+					::gpk::array_pod<byte_t>												Data;
 	};
 
 	struct SHTTPServer {
@@ -37,7 +38,7 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 
 					SHTTPServer																Server;
 
-																							SApplication		(::gpk::SRuntimeValues& runtimeValues)	: Framework(runtimeValues)		{}
+																							SApplication						(::gpk::SRuntimeValues& runtimeValues)	: Framework(runtimeValues)		{}
 	};
 
 	typedef		::std::lock_guard<::std::mutex>											mutex_guard;

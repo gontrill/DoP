@@ -9,7 +9,6 @@
 
 GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 
-			int														serverListen				(::gme::SServer& server);
 			::gpk::error_t											cleanup						(::gme::SApplication & app)						{ 
 	::dop::serverShutdown(app.Server);
 	while(app.Server.Running)

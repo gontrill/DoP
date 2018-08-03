@@ -13,15 +13,6 @@
 
 namespace gme // I'm gonna use a different namespace in order to test a few things about the macros.
 {
-	struct SServer {
-					::gpk::SIPv4														Address						= {{192, 168, 1, 79}, 6667, };
-					bool																Listening					= false;
-					bool																Running						= false;
-					::gpk::array_obj<::gpk::ptr_obj<::dop::STCPIPNode>>					Clients						= {};		
-					SOCKET																Socket						= INVALID_SOCKET;
-					::std::mutex														LockClients					;
-	};
-
 	struct SApplication {
 					::gpk::SFramework													Framework;
 					::gpk::SImage<::gpk::SColorBGRA>									TextureFont					= {};
@@ -33,8 +24,6 @@ namespace gme // I'm gonna use a different namespace in order to test a few thin
 
 																						SApplication				(::gpk::SRuntimeValues& runtimeValues)	: Framework(runtimeValues)		{}
 	};
-
-				::gpk::error_t														serverUpdate				(SServer& server);
 
 	typedef		::std::lock_guard<::std::mutex>										mutex_guard;
 

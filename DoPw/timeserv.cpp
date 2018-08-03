@@ -9,8 +9,13 @@
 
 static constexpr	const uint32_t		BUFFER_SIZE											= 4096;
 
-void									runClientThread										(void* httpServer)							{
+static ::gpk::error_t					clientThread										(::gme::SHTTPServer& httpServer)							{
 	httpServer;
+	return 0;
+}
+
+void									runClientThread										(void* httpServer)											{
+	::clientThread(*(::gme::SHTTPServer*)httpServer);
 }
 
 int										run													(::gme::SHTTPServer& httpServer)							{
