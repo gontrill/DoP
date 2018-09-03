@@ -9,13 +9,14 @@
 
 namespace dop
 {
-#pragma pack(push, 1)
 	struct STCPIPEndpointMessage {
 		::gpk::SEndpointCommand												Command;
-		int64_t																TimeSentLocal;
+		bool																Discard			: 1;
 		::gpk::array_pod<byte_t>											Payload;
+		int64_t																TimeSentLocal;
 	};
 
+#pragma pack(push, 1)
 	enum TCPIP_NODE_MODE : int8_t
 		{ TCPIP_NODE_MODE_CLIENT				= 0
 		, TCPIP_NODE_MODE_HOST	

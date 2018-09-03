@@ -12,17 +12,40 @@
 #	include <process.h>
 #endif
 
-typedef ::std::lock_guard<::std::mutex>								mutex_guard;
+typedef	::std::lock_guard<::std::mutex>			mutex_guard;
 
-::gpk::error_t									run										(::dop::SServer& server);
-static void										run_thread								(void * server)									{ error_if(errored(run(*(::dop::SServer*)server)), "Listening thread exited with error."); }
+		::gpk::error_t							run										(::dop::SServer& server);
+static	void									run_thread								(void * server)									{ error_if(errored(run(*(::dop::SServer*)server)), "Listening thread exited with error."); }
 int												dop::serverListen						(::dop::SServer& server)						{
 	server.Running									= true;
 	_beginthread(::run_thread, 0, &server);
 	return 0;
 }
 
-static ::gpk::error_t							handleConnect							(::dop::SServer& server, ::gpk::SEndpointCommand in_command, sockaddr_in sa_client)		{
+			int									dop::serverShutdown				(::dop::SServer& server)						{
+	server.Listening									= false;
+	char													commandbytes	[256]		= {};
+	::gpk::view_stream<char>								commandToSend				= {commandbytes};
+	::gpk::SEndpointCommand									command						= {::gpk::ENDPOINT_COMMAND_DISCONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
+	commandToSend.write_pod(command);
+
+	// Set family and port */
+	::gpk::SIPv4											& local						= server.Address;
+	sockaddr_in												sa_remote					= {};			/* Information about the server */
+	sa_remote.sin_family								= AF_INET;
+	sa_remote.sin_port									= htons(local.Port);
+	sa_remote.sin_addr.S_un.S_un_b.s_b1					= (unsigned char)local.IP[0];
+	sa_remote.sin_addr.S_un.S_un_b.s_b2					= (unsigned char)local.IP[1];
+	sa_remote.sin_addr.S_un.S_un_b.s_b3					= (unsigned char)local.IP[2];
+	sa_remote.sin_addr.S_un.S_un_b.s_b4					= (unsigned char)local.IP[3];
+	while(server.Running) {
+		warn_if(sendto(server.Socket, (const char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr *)&sa_remote, (int)sizeof(sockaddr_in)) != (int32_t)sizeof(::gpk::SEndpointCommand), "Error sending disconnect command.");
+		::gpk::sleep(10);
+	}
+	return 0;
+}
+
+static	::gpk::error_t							handleConnect							(::dop::SServer& server, ::gpk::SEndpointCommand in_command, sockaddr_in sa_client)		{
 	::gpk::SIPv4										remoteJustReceived						;;
 	::gpk::tcpipAddressFromSockaddr(sa_client, remoteJustReceived);
 	info_printf("Processing CONNECT request. Stage: %u. From address: %u.%u.%u.%u:%u.", (uint32_t)in_command.Payload
@@ -108,7 +131,7 @@ static ::gpk::error_t							handleConnect							(::dop::SServer& server, ::gpk::
 		gpk_necall(::getsockname(pClientFound->SocketReceive, (sockaddr *)&sin, &len), "Failed to get socket information.");
 		pClientFound->AddressLocal.Port					= ntohs(sin.sin_port);
 		info_printf("Socket Receive port number: %i.", (int32_t)pClientFound->AddressLocal.Port);
-		pClientFound->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 1, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
+		pClientFound->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 1, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, true, });
 		sdsafe.Handle									= 0;
 		}
 		break;
@@ -143,14 +166,14 @@ static ::gpk::error_t							handleConnect							(::dop::SServer& server, ::gpk::
 		uint16_t											actualPortReceive						= pClientFound->AddressRemote.Port;
 		pClientFound->AddressRemote.Port				= pClientFound->PortReceive;
 		pClientFound->PortReceive						= actualPortReceive;
-		pClientFound->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, });
+		pClientFound->QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_RESPONSE}, true, });
 		}
 		break;
 	}
 	return 0;
 }
 
-static ::gpk::error_t							handleRequest							(::dop::SServer& server, ::gpk::SEndpointCommand in_command, const ::gpk::SIPv4& addressLocal, sockaddr_in sa_client)		{
+static	::gpk::error_t							handleRequest							(::dop::SServer& server, ::gpk::SEndpointCommand in_command, const ::gpk::SIPv4& addressLocal, sockaddr_in sa_client)		{
 	SOCKET												sd										= server.Socket;
 	//int													client_length							= (int)sizeof(struct sockaddr_in);	// Length of client struct */
 	char												send_buffer	[16]						= {};				/* Name of the server */
@@ -189,6 +212,9 @@ static ::gpk::error_t							handleRequest							(::dop::SServer& server, ::gpk::
 		if(isSame && false == server.Listening) {
 			info_printf("Processing DISCONNECT request.");
 			return 1;
+		}
+		else { // maybe client sent disconnect request?
+		
 		}
 		}
 		break;
@@ -391,33 +417,14 @@ static	::gpk::error_t							run										(::dop::SServer& server)		{
 																			);
 			ce_if(sendto((message.Command.Command == ::gpk::ENDPOINT_COMMAND_CONNECT && message.Command.Payload == 1) ? client.SocketReceive : client.SocketSend, sendBuffer.begin(), sendBuffer.size(), 0, (sockaddr*)&sa_client, (int)sizeof(sockaddr_in)) != (int32_t)sendBuffer.size(), "Error sending datagram.");
 			ce_if(errored(client.QueueSend.remove(iSend)), "Logic got broken!");
-			ce_if(errored(client.QueueSent.push_back(message)), "Out of memory?");
+			if(false == message.Discard) {
+				message.TimeSentLocal							= ::gpk::timeCurrent();
+				ce_if(errored(client.QueueSent.push_back(message)), "Out of memory?");
+			}
+			else 
+				info_printf("%s!", "Discarded!");
 		}
 		//client.QueueSend.clear();
-	}
-	return 0;
-}
-
-
-			int													dop::serverShutdown				(::dop::SServer& server)						{
-	server.Listening													= false;
-	char																	commandbytes	[256]		= {};
-	::gpk::view_stream<char>												commandToSend				= {commandbytes};
-	::gpk::SEndpointCommand													command						= {::gpk::ENDPOINT_COMMAND_DISCONNECT, 0, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST};
-	commandToSend.write_pod(command);
-
-	// Set family and port */
-	::gpk::SIPv4															& local						= server.Address;
-	sockaddr_in																sa_remote					= {};			/* Information about the server */
-	sa_remote.sin_family												= AF_INET;
-	sa_remote.sin_port													= htons(local.Port);
-	sa_remote.sin_addr.S_un.S_un_b.s_b1									= (unsigned char)local.IP[0];
-	sa_remote.sin_addr.S_un.S_un_b.s_b2									= (unsigned char)local.IP[1];
-	sa_remote.sin_addr.S_un.S_un_b.s_b3									= (unsigned char)local.IP[2];
-	sa_remote.sin_addr.S_un.S_un_b.s_b4									= (unsigned char)local.IP[3];
-	while(server.Running) {
-		warn_if(sendto(server.Socket, (const char*)&command, sizeof(::gpk::SEndpointCommand), 0, (sockaddr *)&sa_remote, (int)sizeof(sockaddr_in)) != (int32_t)sizeof(::gpk::SEndpointCommand), "Error sending disconnect command.");
-		::gpk::sleep(10);
 	}
 	return 0;
 }

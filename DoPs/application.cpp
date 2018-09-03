@@ -38,10 +38,10 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 	controlConstraints.AttachSizeToControl								= {app.IdExit, -1};
 	::gpk::controlSetParent(gui, app.IdExit, -1);
 	::gpk::tcpipInitialize();
-	::gpk::SIPv4															addressClient				= {};
+	//::gpk::SIPv4															addressClient				= {};
 	::gpk::SIPv4															& addressServer				= app.Server.Address	= {{192, 168, 1, 79}, 6667,};
 	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressServer);
-	::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient);
+	//::gpk::tcpipAddress(addressServer.Port, 0, ::gpk::TRANSPORT_PROTOCOL_UDP, addressClient);
 	::dop::serverListen(app.Server);
 	return 0; 
 }
@@ -97,6 +97,20 @@ GPK_DEFINE_APPLICATION_ENTRY_POINT(::gme::SApplication, "Module Explorer");
 				return 1;
 		}
 	}
+	for(uint32_t iClient = 0, countClients = app.Server.Clients.size(); iClient < countClients; ++iClient) {
+		::gpk::ptr_nco<dop::STCPIPNode>											client						= app.Server.Clients[iClient];
+		if(client) {
+			for(uint32_t iMessage = 0, countMessages = client->QueueReceive.size(); iMessage < countMessages; ++iMessage) {
+				const ::dop::STCPIPEndpointMessage	& message = client->QueueReceive[iMessage];
+				switch(message.Command.Command) {
+				default								: info_printf("Unrecognized command: %u.", (uint32_t)message.Command.Command); break;
+				case ::gpk::ENDPOINT_COMMAND_TIME	: info_printf("Command: %S.", "ENDPOINT_COMMAND_TIME"	); break;
+				case ::gpk::ENDPOINT_COMMAND_PING	: info_printf("Command: %S.", "ENDPOINT_COMMAND_PING"	); break;
+				}
+			}
+		}
+	}
+
 	::dop::serverUpdate(app.Server);
 	//timer.Frame();
 	//warning_printf("Update time: %f.", (float)timer.LastTimeSeconds);

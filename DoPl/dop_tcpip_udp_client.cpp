@@ -78,19 +78,19 @@ static	::gpk::error_t					tcpipNodeConnect			(::dop::STCPIPNode& client)								
 			default:
 				{
 				info_printf("Received unknown response.");
-				::gpk::view_stream<char>					inputCommand				= {recv_buffer};
-				const uint32_t								sizeToRead					= sizeof(::gpk::SEndpointCommand) + command.Payload;
-				if(SOCKET_ERROR == ::recvfrom(sdRecv, inputCommand.begin(), (int)sizeToRead, MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
-#if defined(GPK_WINDOWS)
-					warning_printf("recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());
-					::WSASetLastError(0);
-#endif
-				}
-				::dop::STCPIPEndpointMessage				msg							= {};
-				msg.Payload.resize(command.Payload);
-				inputCommand.read_pod(msg.Command);
-				inputCommand.read_pod(msg.Payload.begin(), msg.Payload.size());
-				client.QueueReceive.push_back(msg);
+//				::gpk::view_stream<char>					inputCommand				= {recv_buffer};
+//				const uint32_t								sizeToRead					= sizeof(::gpk::SEndpointCommand) + command.Payload;
+//				if(SOCKET_ERROR == ::recvfrom(sdRecv, inputCommand.begin(), (int)sizeToRead, MSG_PEEK, (sockaddr*)&sa_remote, &server_length)) {
+//#if defined(GPK_WINDOWS)
+//					warning_printf("recvfrom failed with code 0x%X: '%s'.", ::WSAGetLastError(), ::gpk::getWindowsErrorAsString(::WSAGetLastError()).begin());
+//					::WSASetLastError(0);
+//#endif
+//				}
+//				::dop::STCPIPEndpointMessage				msg							= {};
+//				msg.Payload.resize(command.Payload);
+//				inputCommand.read_pod(msg.Command);
+//				inputCommand.read_pod(msg.Payload.begin(), msg.Payload.size());
+//				client.QueueReceive.push_back(msg);
 				}
 				break;
 			case ::gpk::ENDPOINT_COMMAND_CONNECT:
@@ -109,13 +109,13 @@ static	::gpk::error_t					tcpipNodeConnect			(::dop::STCPIPNode& client)								
 					break;
 				case 1: 
 					::gpk::tcpipAddressFromSockaddr(sa_remote, client.AddressRemote); 
-					client.QueueSend.push_back({::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST});
+					client.QueueSend.push_back({{::gpk::ENDPOINT_COMMAND_CONNECT, 2, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST}, true, });
 					client.State						= ::dop::TCPIP_NODE_STATE_HANDSHAKE_2;
 					break;
 				case 2: {
 					info_printf("Connection successfully established.", (uint32_t)command.Payload);
 					int64_t									curTime						= {};
-					::dop::STCPIPEndpointMessage			msgToSend					= {{::gpk::ENDPOINT_COMMAND_TIME, 8, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST}, };
+					::dop::STCPIPEndpointMessage			msgToSend					= {{::gpk::ENDPOINT_COMMAND_TIME, 8, ::gpk::ENDPOINT_MESSAGE_TYPE_REQUEST}, true, };
 					msgToSend.Payload.append((const byte_t*)&curTime, sizeof(int64_t));
 					client.QueueSend.push_back(msgToSend);
 					client.State						= ::dop::TCPIP_NODE_STATE_IDLE;
@@ -151,12 +151,5 @@ static	::gpk::error_t					tcpipNodeConnect			(::dop::STCPIPNode& client)								
 	return 0;
 }
 
-static	void									tcpipNodeConnect				(void * client)													{
-	error_if(errored(::tcpipNodeConnect(*(::dop::STCPIPNode*)client)), "Cannot connect to server.");
-	return;
-}
-
-		::gpk::error_t							dop::tcpipNodeConnect			(::dop::STCPIPNode& client)										{
-	_beginthread(::tcpipNodeConnect, 0, &client);
-	return 0;
-}
+static	void									tcpipNodeConnect				(void * client)													{ error_if(errored(::tcpipNodeConnect(*(::dop::STCPIPNode*)client)), "Cannot connect to server."); return; }
+		::gpk::error_t							dop::tcpipNodeConnect			(::dop::STCPIPNode& client)										{ _beginthread(::tcpipNodeConnect, 0, &client); return 0; }
